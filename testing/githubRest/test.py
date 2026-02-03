@@ -17,6 +17,9 @@ headers = {
 }
 
 def get_repo_contents():
+    '''
+    Pulls down repo contents and writes them to out.txt
+    '''
     response = requests.get(url, headers=headers)
 
     # Raise an error if the request failed (optional but recommended)
