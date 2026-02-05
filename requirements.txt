@@ -1,1 +1,6 @@
 requests
+sentence-transformers==2.2.2
+faiss-cpu
+ollama
+numpy
+requests
