@@ -5,7 +5,7 @@ Testing script for demonstrating GitHub REST API usage.
 import requests
 
 owner = "SamanthaSmith04"
-repo = "pumpkin_carving"
+repo = "GeodesicSurfaceInformedPlanner"
 token_location = "GITHUBACCESSTOKEN"
 token = open(token_location, "r").read().strip()
 
@@ -17,9 +17,6 @@ headers = {
 }
 
 def get_repo_contents():
-    '''
-    Pulls down repo contents and writes them to out.txt
-    '''
     response = requests.get(url, headers=headers)
 
     # Raise an error if the request failed (optional but recommended)
@@ -28,7 +25,7 @@ def get_repo_contents():
     data = response.json()
 
     # Open out.txt for writing
-    with open('testing/githubRest/out.txt', 'w') as f:
+    with open('testing/githubRest/code.txt', 'w') as f:
         f.write(str(data) + '\n')  # Write the repository data
 
         contents_url = data['contents_url'].replace('{+path}', '')
@@ -67,5 +64,17 @@ def get_repo_contents():
                     content_queue.append(item['path'])
 
 
+def get_commit_history():
+    commits_url = url + "/commits"
+    response = requests.get(commits_url, headers=headers)
+    data = response.json()
+    with open('testing/githubRest/commits.txt', 'w') as f:
+        f.write('--------------------------------------------\n')
+        for item in data:
+            if item['commit']['verification']['payload']:
+                f.write(item['commit']['verification']['payload'])
+                f.write('\n--------------------------------------------\n')
+
+
 if __name__ == "__main__":
-    get_repo_contents()
+    get_commit_history()
