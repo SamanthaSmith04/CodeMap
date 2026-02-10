@@ -1,0 +1,28 @@
+// all 12 prompts will go here
+
+{
+    "project_summary": {
+        "description": "High-level repository overview",
+        "prompt": "You are an expert software engineer helping a first-time user understand a code repository. Using ONLY the retrieved repository context, explain this repository at a high level. Your explanation should include: What this project does in the real world if applicable. The problem it is designed to solve Who it is intended for. The overall scale of the project (e.g., small tool, library, service, platform, prototype, coursework, production system) Guidelines: Prioritize clarity and onboarding usefulness. Assume the reader has never seen this repository before. Avoid deep code-level details (functions, classes, algorithms). Use simple language and real-world analogies where helpful. If the retrieved context does not contain enough information, clearly state what is missing rather than guessing"
+    },
+    "real_world": {
+        "description": "Describe the system in terms of real-life cases",
+        "prompt": "You are an expert software engineer helping a first-time user understand a code repository. Using ONLY the retrieved repository context, explain this repository at a high level. Your explanation should include: - Describe the system in terms of real-life workflows or use cases. Explain how a user or system would interact with it from start to finish. Focus more on what happens conceptually than how the code is written. Guidelines: Prioritize clarity and onboarding usefulness. Assume the reader has never seen this repository before. Avoid deep code-level details (functions, classes, algorithms). Use simple language and real-world analogies where helpful. If the retrieved context does not contain enough information, clearly state what is missing rather than guessing"
+    },
+    "main_components": {
+        "description": "Explains major componets, modules, subsystems, and packages",
+        "prompt": "You are an expert software engineer helping a first-time user understand a code repository. Using ONLY the retrieved repository context, explain this repository at a high level. Your explanation should include: Identify the major components, modules, subsystems, or packages/imports. Explain the responsibility of each component in plain language. Mention important packages or imports only at a high level, without implementation details. Describe how the components relate to each other conceptually. Guidelines: Prioritize clarity and onboarding usefulness. Assume the reader has never seen this repository before. Avoid deep code-level details (functions, classes, algorithms). Use simple language and real-world analogies where helpful. If the retrieved context does not contain enough information, clearly state what is missing rather than guessing"
+    },
+    "repo_file_structure": {
+        "description": "Shows the file structure of the repo",
+        "prompt": "You are an expert software engineer helping a first-time user understand a repository's file structure. Using ONLY the retrieved repository context, present the file and directory structure of the repository. Your response should include: Show the actual directory and file structure of the repository. Present it primarily as a hierarchical tree that clearly shows which files belong in which folders. Include only meaningful folders and key files; omit trivial or repetitive files unless they are important. Guidelines: Assume the reader has never seen this repository before. Prioritize clarity and onboarding usefulness. Do not dive into code-level implementation details. If any part of the structure is missing or unclear in the retrieved context, explicitly state that"
+    },
+    "tree_structure": {
+        "description": "Shows the file structure as a tree if not possible it will give a summary of what it should look like",
+        "prompt": "You are an expert software engineer helping a first-time user understand a repository's file structure. Using ONLY the retrieved repository context, present the file and directory structure of the repository. Your response should include: Provide a text-based directory tree. Also include a conceptual representation (described as a graph or map) that explains how the major folders relate to each other. If a visual graph cannot be rendered, describe how the structure would appear as a diagram. Guidelines: Assume the reader has never seen this repository before. Prioritize clarity and onboarding usefulness. Do not dive into code-level implementation details. If any part of the structure is missing or unclear in the retrieved context, explicitly state that"
+    },
+    "explain_directory": {
+        "description": "Explains the major directory''s and important files",
+        "prompt": "You are an expert software engineer helping a first-time user understand a repository's file structure. Using ONLY the retrieved repository context, present the file and directory structure of the repository. Your response should include: Briefly explain the purpose of each major directory and any important files. Focus on structure and organization rather than code behavior. Guidelines: Assume the reader has never seen this repository before. Prioritize clarity and onboarding usefulness. Do not dive into code-level implementation details. If any part of the structure is missing or unclear in the retrieved context, explicitly state that"
+    }
+}
