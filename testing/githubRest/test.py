@@ -3,6 +3,7 @@ Testing script for demonstrating GitHub REST API usage.
 
 '''
 import requests
+import os
 
 owner = "SamanthaSmith04"
 repo = "GeodesicSurfaceInformedPlanner"
@@ -28,6 +29,10 @@ def get_repo_contents():
     data = response.json()
 
     # Open out.txt for writing
+    folder_location = "testing/githubRest/files/"
+
+    # Create parent directories if they don't exist
+    os.makedirs(os.path.dirname(folder_location), exist_ok=True)
     with open('testing/githubRest/code.txt', 'w') as f:
         f.write(str(data) + '\n')  # Write the repository data
 
@@ -49,6 +54,9 @@ def get_repo_contents():
                 file_response = requests.get(item['download_url'], headers=headers)
                 file_response.raise_for_status()
                 f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
+                file = open(folder_location + "/" + item['name'], 'w')
+                file.write(file_response.text)
+                file.close()
             elif item['type'] == 'dir':
                 content_queue.append(item['path'])
 
@@ -63,8 +71,13 @@ def get_repo_contents():
                     file_response = requests.get(item['download_url'], headers=headers)
                     file_response.raise_for_status()
                     f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
+                    file = open(folder_location + "/" + item['name'], 'w')
+                    file.write(file_response.text)
+                    file.close()
                 elif item['type'] == 'dir':
                     content_queue.append(item['path'])
+
+                
 
 
 def get_commit_history():
@@ -117,4 +130,4 @@ def get_issue_history():
 
 
 if __name__ == "__main__":
-    get_issue_history()
+    get_repo_contents()
