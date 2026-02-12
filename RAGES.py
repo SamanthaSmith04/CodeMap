@@ -1,99 +1,90 @@
 import os
 import asyncio
-import nest_asyncio
 from elasticsearch import AsyncElasticsearch, Elasticsearch
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext
+from llama_index.core.ingestion import IngestionPipeline
 from llama_index.vector_stores.elasticsearch import ElasticsearchStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 
-# 1. Patch the event loop for macOS/Python 3.14 compatibility
-nest_asyncio.apply()
-
-# CONFIGURATION
+# --- CONFIGURATION ---
 ES_URL = "http://127.0.0.1:9201"
 INDEX_NAME = "github_rag_index"
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-# Global Settings
+# Initialize Settings
 Settings.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME)
 Settings.llm = Ollama(model="llama3.1", request_timeout=120.0)
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
-def create_index_if_missing():
-    """Synchronous check to ensure index exists with correct 384-dim mapping."""
-    # We use a sync client here just for the setup check
+def setup_index(delete_existing=False):
     sync_es = Elasticsearch(ES_URL)
+    
+    if delete_existing and sync_es.indices.exists(index=INDEX_NAME):
+        print(f"Deleting existing index {INDEX_NAME} for a fresh start...")
+        sync_es.indices.delete(index=INDEX_NAME)
+
     if not sync_es.indices.exists(index=INDEX_NAME):
-        print(f"Index {INDEX_NAME} not found. Creating it...")
+        print(f"Creating index {INDEX_NAME}...")
         sync_es.indices.create(
             index=INDEX_NAME,
             body={
                 "mappings": {
                     "properties": {
-                        "embedding": {
-                            "type": "dense_vector",
-                            "dims": 384, # Matches all-MiniLM-L6-v2
-                            "index": True,
-                            "similarity": "cosine"
-                        }
+                        "embedding": {"type": "dense_vector", "dims": 384, "index": True, "similarity": "cosine"}
                     }
                 }
             }
         )
-    else:
-        print(f"Index {INDEX_NAME} already exists.")
 
-def index_repository(repo_path: str):
-    print(f"--- Indexing Repository: {repo_path} ---")
-    create_index_if_missing()
+async def run_pipeline(repo_path: str, user_query: str):
+    setup_index()
 
-    # Load documents from the test folder
-    reader = SimpleDirectoryReader(input_dir=repo_path, recursive=True)
+    # 1. LOAD ONLY RELEVANT FILES (Avoids the 'garbled text' issue)
+    print(f"--- Loading Repository: {repo_path} ---")
+    reader = SimpleDirectoryReader(
+        input_dir=repo_path, 
+        recursive=True,
+        required_exts=[".py", ".md", ".txt", ".js", ".json"] # Only read these
+    )
     documents = reader.load_data()
-    print(f"Loaded {len(documents)} documents.")
+    print(f"Loaded {len(documents)} text-based documents.")
 
-    # USE ASYNC CLIENT to prevent 'HeadApiResponse' errors
-    async_es_client = AsyncElasticsearch(ES_URL)
-    
-    vector_store = ElasticsearchStore(
-        index_name=INDEX_NAME,
-        es_client=async_es_client # This must be the async version
-    )
-    
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    
-    # This call is sync but uses nest_asyncio to handle the async store internally
-    index = VectorStoreIndex.from_documents(
-        documents, 
-        storage_context=storage_context,
-        show_progress=True
-    )
-    print("Indexing complete.")
-    return index
-
-def run_query(query_text: str):
-    """Retrieves context and generates an answer."""
+    # 2. ASYNC SETUP
     async_es_client = AsyncElasticsearch(ES_URL)
     vector_store = ElasticsearchStore(index_name=INDEX_NAME, es_client=async_es_client)
-    index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+
+    # 3. INDEXING
+    print("Embedding and indexing...")
+    pipeline = IngestionPipeline(
+        transformations=[Settings.node_parser, Settings.embed_model],
+        vector_store=vector_store,
+    )
+    await pipeline.arun(documents=documents, show_progress=True)
     
+    # 4. QUERY
+    index = VectorStoreIndex.from_vector_store(vector_store)
+    print(f"\n--- Running Query: {user_query} ---")
     query_engine = index.as_query_engine()
-    response = query_engine.query(query_text)
+    response = await query_engine.aquery(user_query)
+    
+    await async_es_client.close()
     return response
 
-if __name__ == "__main__":
-    repo_to_index = "./test" 
+async def main():
+    repo_to_index = "./test"
     if os.path.exists(repo_to_index):
-        # 1. Index the repo
-        index_repository(repo_to_index)
-        
-        # 2. Run a test query
-        user_query = "Summarize the files in this repository."
-        answer = run_query(user_query)
-        
+        query = "Summarize the purpose of these files and their contents."
+        answer = await run_pipeline(repo_to_index, query)
         print("\n--- RAG ANSWER ---")
         print(answer)
     else:
-        print(f"Error: Directory {repo_to_index} not found.")
+        print(f"Directory {repo_to_index} not found.")
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except RuntimeError:
+        # This catches the Python 3.14 specific shutdown noise if it persists
+        pass
