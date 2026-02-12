@@ -1,0 +1,4 @@
+elasticsearch>=8.15.0
+llama-index>=0.10.0
+llama-index-vector-stores-elasticsearch
+sentence-transformers
