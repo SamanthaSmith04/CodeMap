@@ -75,6 +75,86 @@ def get_commit_history():
                 f.write(item['commit']['verification']['payload'])
                 f.write('\n--------------------------------------------\n')
 
+def list_pull_requests(state="open", per_page=30, page=1, output_path="testing/githubRest/pulls_list.txt"):
+    """
+    Lists pull requests for the repo.
+    state: "open", "closed", or "all"
+    """
+    pulls_url = url + "/pulls"
+    params = {
+        "state": state,
+        "per_page": per_page,
+        "page": page,
+        "sort": "created",
+        "direction": "desc",
+    }
+
+    response = requests.get(pulls_url, headers=headers, params=params)
+    response.raise_for_status()
+    data = response.json()
+
+    with open(output_path, "w") as f:
+        f.write(f"PRs (state={state}, per_page={per_page}, page={page})\n")
+        f.write("--------------------------------------------\n")
+        for pr in data:
+            f.write(f"#{pr.get('number')}  {pr.get('title')}\n")
+            f.write(f"State: {pr.get('state')} | Draft: {pr.get('draft')} | Merged: {pr.get('merged_at') is not None}\n")
+            f.write(f"Author: {pr.get('user', {}).get('login')} | Created: {pr.get('created_at')} | Updated: {pr.get('updated_at')}\n")
+            f.write(f"URL: {pr.get('html_url')}\n")
+            f.write("--------------------------------------------\n")
+
+    return data
+
+def get_pull_request_details(pull_number, output_path="testing/githubRest/pr_details.txt"):
+    """
+    Gets full details for a specific pull request.
+    """
+    pr_url = url + f"/pulls/{pull_number}"
+
+    response = requests.get(pr_url, headers=headers)
+    response.raise_for_status()
+    pr = response.json()
+
+    with open(output_path, "w") as f:
+        f.write(f"PR Details: #{pr.get('number')} - {pr.get('title')}\n")
+        f.write("--------------------------------------------\n")
+        f.write(f"State: {pr.get('state')} | Draft: {pr.get('draft')} | Merged: {pr.get('merged_at') is not None}\n")
+        f.write(f"Author: {pr.get('user', {}).get('login')}\n")
+        f.write(f"Created: {pr.get('created_at')}\n")
+        f.write(f"Updated: {pr.get('updated_at')}\n")
+        f.write(f"Base: {pr.get('base', {}).get('ref')}  <-  Head: {pr.get('head', {}).get('ref')}\n")
+        f.write(f"Additions: {pr.get('additions')} | Deletions: {pr.get('deletions')} | Changed files: {pr.get('changed_files')}\n")
+        f.write(f"Commits: {pr.get('commits')} | Comments: {pr.get('comments')} | Review comments: {pr.get('review_comments')}\n")
+        f.write(f"URL: {pr.get('html_url')}\n")
+        f.write("--------------------------------------------\n\n")
+
+        body = pr.get("body") or ""
+        if body.strip():
+            f.write("Body:\n")
+            f.write(body)
+            f.write("\n")
+
+    return pr
+
+def get_pr_review_comments(pull_number):
+    comments_url = url + f"/pulls/{pull_number}/comments"
+    response = requests.get(comments_url, headers=headers)
+    data = response.json()
+
+    with open('testing/githubRest/pr_review_comments.txt', 'w') as f:
+        for comment in data:
+            user = comment['user']['login']
+            body = comment['body']
+            path = comment['path']
+
+            f.write(f"User: {user}\n")
+            f.write(f"File: {path}\n")
+            f.write(f"Comment: {body}\n")
+            f.write('--------------------------------------------\n')
 
 if __name__ == "__main__":
-    get_commit_history()
+    # get_commit_history()
+    list_pull_requests()
+    get_pull_request_details(44)
+    get_pr_review_comments(44)
+    
