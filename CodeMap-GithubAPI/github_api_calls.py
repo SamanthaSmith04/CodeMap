@@ -4,6 +4,8 @@ GitHub REST API
 import requests
 import os
 
+folder_location = "temp_files/"
+
 def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN"):
     """
         Sets up github connection
@@ -26,7 +28,6 @@ def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN
         "X-GitHub-Api-Version": "2022-11-28",
     }
     # Open out.txt for writing
-    folder_location = "temp_files/"
 
     # Create parent directories if they don't exist
     os.makedirs(os.path.dirname(folder_location), exist_ok=True)
@@ -64,17 +65,25 @@ def get_repo_contents(headers, url):
         f.write("Repository Contents: " + str(contents_data) + '\n')
 
         # Read files from contents_data
+
         content_queue = []
         for item in contents_data:
             if item['type'] == 'file':
                 file_response = requests.get(item['download_url'], headers=headers)
                 file_response.raise_for_status()
-                f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
-                file = open(folder_location + "/" + item['name'], 'w')
-                file.write(file_response.text)
-                file.close()
+
+                # Use full relative path
+                local_path = os.path.join(folder_location, item['path'])
+
+                # Create directories if they don’t exist
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                with open(local_path, 'w') as file:
+                    file.write(file_response.text)
+
             elif item['type'] == 'dir':
                 content_queue.append(item['path'])
+
 
         while len(content_queue) > 0:
             current_path = content_queue.pop(0)
@@ -86,10 +95,16 @@ def get_repo_contents(headers, url):
                 if item['type'] == 'file':
                     file_response = requests.get(item['download_url'], headers=headers)
                     file_response.raise_for_status()
-                    f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
-                    file = open(folder_location + "/" + item['name'], 'w')
-                    file.write(file_response.text)
-                    file.close()
+
+                    # Use full relative path
+                    local_path = os.path.join(folder_location, item['path'])
+
+                    # Create directories if they don’t exist
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                    with open(local_path, 'w') as file:
+                        file.write(file_response.text)
+
                 elif item['type'] == 'dir':
                     content_queue.append(item['path'])
 
