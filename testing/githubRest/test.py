@@ -53,12 +53,19 @@ def get_repo_contents():
             if item['type'] == 'file':
                 file_response = requests.get(item['download_url'], headers=headers)
                 file_response.raise_for_status()
-                f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
-                file = open(folder_location + "/" + item['name'], 'w')
-                file.write(file_response.text)
-                file.close()
+
+                # Use full relative path
+                local_path = os.path.join(folder_location, item['path'])
+
+                # Create directories if they don’t exist
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                with open(local_path, 'w') as file:
+                    file.write(file_response.text)
+
             elif item['type'] == 'dir':
                 content_queue.append(item['path'])
+
 
         while len(content_queue) > 0:
             current_path = content_queue.pop(0)
@@ -70,10 +77,16 @@ def get_repo_contents():
                 if item['type'] == 'file':
                     file_response = requests.get(item['download_url'], headers=headers)
                     file_response.raise_for_status()
-                    f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
-                    file = open(folder_location + "/" + item['name'], 'w')
-                    file.write(file_response.text)
-                    file.close()
+
+                    # Use full relative path
+                    local_path = os.path.join(folder_location, item['path'])
+
+                    # Create directories if they don’t exist
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                    with open(local_path, 'w') as file:
+                        file.write(file_response.text)
+
                 elif item['type'] == 'dir':
                     content_queue.append(item['path'])
 
