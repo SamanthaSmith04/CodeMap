@@ -4,6 +4,7 @@ GitHub REST API
 import requests
 import os
 
+folder_location = "temp_files"
 def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN"):
     """
         Sets up github connection
@@ -26,10 +27,11 @@ def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN
         "X-GitHub-Api-Version": "2022-11-28",
     }
     # Open out.txt for writing
-    folder_location = "temp_files/"
+    global folder_location
+    folder_location = "temp_files"
 
     # Create parent directories if they don't exist
-    os.makedirs(os.path.dirname(folder_location), exist_ok=True)
+    os.makedirs(folder_location, exist_ok=True)
 
     return headers, url
 
@@ -49,7 +51,7 @@ def get_repo_contents(headers, url):
         return
     data = response.json()
 
-    with open('testing/githubRest/code.txt', 'w') as f:
+    with open('testing/githubRest/code.txt', 'w', encoding='utf-8') as f:
         f.write(str(data) + '\n')  # Write the repository data
 
         contents_url = data['contents_url'].replace('{+path}', '')
@@ -70,7 +72,7 @@ def get_repo_contents(headers, url):
                 file_response = requests.get(item['download_url'], headers=headers)
                 file_response.raise_for_status()
                 f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
-                file = open(folder_location + "/" + item['name'], 'w')
+                file = open(os.path.join(folder_location, item['name']), 'w', encoding='utf-8')
                 file.write(file_response.text)
                 file.close()
             elif item['type'] == 'dir':
@@ -87,7 +89,7 @@ def get_repo_contents(headers, url):
                     file_response = requests.get(item['download_url'], headers=headers)
                     file_response.raise_for_status()
                     f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
-                    file = open(folder_location + "/" + item['name'], 'w')
+                    file = open(os.path.join(folder_location, item['name']), 'w', encoding='utf-8')
                     file.write(file_response.text)
                     file.close()
                 elif item['type'] == 'dir':
@@ -105,7 +107,7 @@ def get_commit_history(headers, url):
     response = requests.get(commits_url, headers=headers)
     response.raise_for_status()
     data = response.json()
-    with open('temp_files/commits.txt', 'w') as f:
+    with open('temp_files/commits.txt', 'w', encoding='utf-8') as f:
         f.write('--------------------------------------------\n')
         for item in data:
             if item['commit']['verification']['payload']:
@@ -126,7 +128,7 @@ def get_issue_history(headers, url):
     response = requests.get(issues_url, headers=headers, params=params)
     response.raise_for_status()
     data = response.json()
-    with open('temp_files/issues.txt', 'w') as f:
+    with open('temp_files/issues.txt', 'w', encoding='utf-8') as f:
         for item in data:
             if item['title']:
                 f.write('--------------------------------------------\n')
@@ -173,7 +175,7 @@ def list_pull_requests(headers, url, state="open", per_page=30, page=1, output_p
     response.raise_for_status()
     data = response.json()
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding='utf-8') as f:
         f.write(f"PRs (state={state}, per_page={per_page}, page={page})\n")
         f.write("--------------------------------------------\n")
         for pr in data:
@@ -195,7 +197,7 @@ def get_pull_request_details(headers, url, pull_number, output_path="temp_files/
     response.raise_for_status()
     pr = response.json()
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding='utf-8') as f:
         f.write(f"PR Details: #{pr.get('number')} - {pr.get('title')}\n")
         f.write("--------------------------------------------\n")
         f.write(f"State: {pr.get('state')} | Draft: {pr.get('draft')} | Merged: {pr.get('merged_at') is not None}\n")
@@ -227,7 +229,7 @@ def get_pr_review_comments(headers, url, pull_number):
     response = requests.get(comments_url, headers=headers)
     data = response.json()
 
-    with open('temp_files/PRS/pr_review_comments.txt', 'w') as f:
+    with open('temp_files/PRS/pr_review_comments.txt', 'w', encoding='utf-8') as f:
         for comment in data:
             user = comment['user']['login']
             body = comment['body']
