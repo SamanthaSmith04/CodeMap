@@ -19,11 +19,7 @@ Follow the project setup above to create a virtual environment and install depen
 Make sure Docker Desktop is installed and running. Then run this (same command you used):
 
 ```
-docker run -d --name es-local \
-  -p 9201:9200 \
-  -e "discovery.type=single-node" \
-  -e "xpack.security.enabled=false" \
-  docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+docker run -d --name es-local -p 9201:9200 -e "discovery.type=single-node" -e "xpack.security.enabled=false" docker.elastic.co/elasticsearch/elasticsearch:8.15.0
 ```
 
 - Wait 30–60 seconds for it to start.
