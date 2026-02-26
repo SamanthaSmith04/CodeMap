@@ -128,31 +128,7 @@ async def main():
             print(f"Error: Path '{repo_path}' not found.")
             return
 
-        templates = load_prompt_templates()
-        if not templates: return
 
-        print("\n--- Available Analysis Templates ---")
-        template_keys = list(templates.keys())
-        for idx, key in enumerate(template_keys, 1):
-            print(f"[{idx}] {templates[key]['description']}")
-
-        try:
-            choice = int(input("\nSelect a template number: "))
-            if 1 <= choice <= len(template_keys):
-                selected_config = templates[template_keys[choice - 1]]
-                print(f"\nRunning: {selected_config['description']}")
-            
-                answer = await run_pipeline(repo_path, selected_config['prompt'])
-            
-                print("\n" + "="*60)
-                print(f"FINAL OUTPUT: {selected_config['description']}")
-                print("="*60)
-                print(answer)
-                print("="*60 + "\n")
-            else:
-                print("Invalid choice.")
-        except ValueError:
-            print("Invalid input.")
     elif choice == "2":
         # GitHub repository
         owner = input("Enter GitHub repository owner: ").strip()
@@ -168,17 +144,31 @@ async def main():
         return
     
     # Get user query
-    query = input("Enter your query (default: 'Summarize the purpose of these files and their contents.'): ").strip()
-    if not query:
-        query = "Summarize the purpose of these files and their contents."
-    
-    # Run the pipeline
+    templates = load_prompt_templates()
+    if not templates: return
+
+    print("\n--- Available Analysis Templates ---")
+    template_keys = list(templates.keys())
+    for idx, key in enumerate(template_keys, 1):
+        print(f"[{idx}] {templates[key]['description']}")
+
     try:
-        answer = await run_pipeline(repo_path, query)
-        print("\n--- RAG ANSWER ---")
-        print(answer)
-    except Exception as e:
-        print(f"✗ Error running pipeline: {e}")
+        choice = int(input("\nSelect a template number: "))
+        if 1 <= choice <= len(template_keys):
+            selected_config = templates[template_keys[choice - 1]]
+            print(f"\nRunning: {selected_config['description']}")
+            
+            answer = await run_pipeline(repo_path, selected_config['prompt'])
+            
+            print("\n" + "="*60)
+            print(f"FINAL OUTPUT: {selected_config['description']}")
+            print("="*60)
+            print(answer)
+            print("="*60 + "\n")
+        else:
+            print("Invalid choice.")
+    except ValueError:
+        print("Invalid input.")
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
