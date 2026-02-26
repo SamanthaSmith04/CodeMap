@@ -1,0 +1,22 @@
+# test_config.yaml - Sample project configuration
+
+app:
+  name: CodeMap RAG Demo
+  version: 1.0.0
+  debug: true
+
+database:
+  host: localhost
+  port: 5432
+  name: rag_db
+  user: postgres
+  password: secret123
+
+elasticsearch:
+  url: http://localhost:9200
+  index: github_rag_index
+
+llm:
+  provider: ollama
+  model: llama3.1
+  temperature: 0.7
