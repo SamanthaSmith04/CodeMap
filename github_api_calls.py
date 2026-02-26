@@ -4,12 +4,7 @@ GitHub REST API
 import requests
 import os
 
-<<<<<<<< HEAD:github_api_calls.py
-folder_location = "temp_files"
-========
-folder_location = "temp_files/"
 
->>>>>>>> 6aac780090803bc64545ca68d0fa8c886e380ac1:CodeMap-GithubAPI/github_api_calls.py
 def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN"):
     """
         Sets up github connection
@@ -32,11 +27,8 @@ def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN
         "X-GitHub-Api-Version": "2022-11-28",
     }
     # Open out.txt for writing
-<<<<<<<< HEAD:github_api_calls.py
     global folder_location
-    folder_location = "temp_files"
-========
->>>>>>>> 6aac780090803bc64545ca68d0fa8c886e380ac1:CodeMap-GithubAPI/github_api_calls.py
+    folder_location = "temp_files/"
 
     # Create parent directories if they don't exist
     os.makedirs(folder_location, exist_ok=True)
@@ -80,23 +72,11 @@ def get_repo_contents(headers, url):
             if item['type'] == 'file':
                 file_response = requests.get(item['download_url'], headers=headers)
                 file_response.raise_for_status()
-<<<<<<<< HEAD:github_api_calls.py
                 f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
                 file = open(os.path.join(folder_location, item['name']), 'w', encoding='utf-8')
                 file.write(file_response.text)
                 file.close()
-========
 
-                # Use full relative path
-                local_path = os.path.join(folder_location, item['path'])
-
-                # Create directories if they don’t exist
-                os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-                with open(local_path, 'w') as file:
-                    file.write(file_response.text)
-
->>>>>>>> 6aac780090803bc64545ca68d0fa8c886e380ac1:CodeMap-GithubAPI/github_api_calls.py
             elif item['type'] == 'dir':
                 content_queue.append(item['path'])
 
@@ -111,23 +91,11 @@ def get_repo_contents(headers, url):
                 if item['type'] == 'file':
                     file_response = requests.get(item['download_url'], headers=headers)
                     file_response.raise_for_status()
-<<<<<<<< HEAD:github_api_calls.py
                     f.write(f"Contents of {item['name']}:\n{file_response.text}\n")
                     file = open(os.path.join(folder_location, item['name']), 'w', encoding='utf-8')
                     file.write(file_response.text)
                     file.close()
-========
 
-                    # Use full relative path
-                    local_path = os.path.join(folder_location, item['path'])
-
-                    # Create directories if they don’t exist
-                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-                    with open(local_path, 'w') as file:
-                        file.write(file_response.text)
-
->>>>>>>> 6aac780090803bc64545ca68d0fa8c886e380ac1:CodeMap-GithubAPI/github_api_calls.py
                 elif item['type'] == 'dir':
                     content_queue.append(item['path'])
 
