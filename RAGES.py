@@ -7,6 +7,7 @@ from llama_index.core.ingestion import IngestionPipeline
 from llama_index.vector_stores.elasticsearch import ElasticsearchStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
+from github_api_calls import set_up_github_connection, get_repo_contents
 
 ES_URL = "http://127.0.0.1:9201"
 INDEX_NAME = "github_rag_index"
@@ -18,8 +19,36 @@ Settings.llm = Ollama(model="llama3.1", request_timeout=120.0)
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
-def setup_fresh_index():
-    """Wipes the existing index and creates a clean one at the start of every run."""
+def download_github_repo(owner: str, repo: str) -> str:
+    """
+    Download a GitHub repository and save files locally using GitHub API calls.
+    
+    Args:
+        owner: GitHub repository owner
+        repo: GitHub repository name
+        
+    Returns:
+        Path to the local directory containing downloaded files
+    """
+    print(f"Downloading GitHub repository: {owner}/{repo}")
+    
+    try:
+        # Set up GitHub connection
+        headers, url = set_up_github_connection(owner, repo)
+        
+        # Download repository contents
+        get_repo_contents(headers, url)
+        
+        # Return the temp directory path where files are saved
+        temp_dir = "temp_files"
+        print(f"Repository downloaded to: {temp_dir}")
+        return temp_dir
+        
+    except Exception as e:
+        print(f"Error downloading repository: {e}")
+        raise
+
+def setup_fresh_index(delete_existing=False):
     sync_es = Elasticsearch(ES_URL)
     
     if sync_es.indices.exists(index=INDEX_NAME):
@@ -87,36 +116,69 @@ async def run_pipeline(repo_path: str, user_prompt: str):
     return response
 
 async def main():
-    repo_path = input("Enter the path to the code repository: ").strip()
-    if not os.path.exists(repo_path):
-        print(f"Error: Path '{repo_path}' not found.")
+    print("\n=== RAGES - Elasticsearch RAG System ===")
+    print("1. Index a local directory")
+    print("2. Download and index a GitHub repository")
+    
+    choice = input("\nSelect source type (1-2): ").strip()
+    
+    if choice == "1":
+        repo_path = input("Enter the path to the code repository: ").strip()
+        if not os.path.exists(repo_path):
+            print(f"Error: Path '{repo_path}' not found.")
+            return
+
+        templates = load_prompt_templates()
+        if not templates: return
+
+        print("\n--- Available Analysis Templates ---")
+        template_keys = list(templates.keys())
+        for idx, key in enumerate(template_keys, 1):
+            print(f"[{idx}] {templates[key]['description']}")
+
+        try:
+            choice = int(input("\nSelect a template number: "))
+            if 1 <= choice <= len(template_keys):
+                selected_config = templates[template_keys[choice - 1]]
+                print(f"\nRunning: {selected_config['description']}")
+            
+                answer = await run_pipeline(repo_path, selected_config['prompt'])
+            
+                print("\n" + "="*60)
+                print(f"FINAL OUTPUT: {selected_config['description']}")
+                print("="*60)
+                print(answer)
+                print("="*60 + "\n")
+            else:
+                print("Invalid choice.")
+        except ValueError:
+            print("Invalid input.")
+    elif choice == "2":
+        # GitHub repository
+        owner = input("Enter GitHub repository owner: ").strip()
+        repo = input("Enter GitHub repository name: ").strip()
+        
+        try:
+            repo_path = download_github_repo(owner, repo)
+        except Exception as e:
+            print(f"✗ Failed to download repository: {e}")
+            return
+    else:
+        print("✗ Invalid choice.")
         return
-
-    templates = load_prompt_templates()
-    if not templates: return
-
-    print("\n--- Available Analysis Templates ---")
-    template_keys = list(templates.keys())
-    for idx, key in enumerate(template_keys, 1):
-        print(f"[{idx}] {templates[key]['description']}")
-
+    
+    # Get user query
+    query = input("Enter your query (default: 'Summarize the purpose of these files and their contents.'): ").strip()
+    if not query:
+        query = "Summarize the purpose of these files and their contents."
+    
+    # Run the pipeline
     try:
-        choice = int(input("\nSelect a template number: "))
-        if 1 <= choice <= len(template_keys):
-            selected_config = templates[template_keys[choice - 1]]
-            print(f"\nRunning: {selected_config['description']}")
-            
-            answer = await run_pipeline(repo_path, selected_config['prompt'])
-            
-            print("\n" + "="*60)
-            print(f"FINAL OUTPUT: {selected_config['description']}")
-            print("="*60)
-            print(answer)
-            print("="*60 + "\n")
-        else:
-            print("Invalid choice.")
-    except ValueError:
-        print("Invalid input.")
+        answer = await run_pipeline(repo_path, query)
+        print("\n--- RAG ANSWER ---")
+        print(answer)
+    except Exception as e:
+        print(f"✗ Error running pipeline: {e}")
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
