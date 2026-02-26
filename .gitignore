@@ -2,3 +2,4 @@ GITHUBACCESSTOKEN
 .vscode
 venv
 temp_files
+.pyc
