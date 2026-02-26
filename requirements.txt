@@ -4,3 +4,9 @@ faiss-cpu
 ollama
 numpy
 requests
+elasticsearch
+llama_index
+llama-index-vector-stores-elasticsearch
+llama-index-embeddings-huggingface
+llama-index-llms-ollama
+nest-asyncio
