@@ -1,1 +1,0 @@
-# "hallucination detection" - quality checker
