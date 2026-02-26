@@ -1,0 +1,1 @@
+This is a sample document from a GitHub repo. It contains Python code examples and comments for RAG testing purposes.
