@@ -1,0 +1,4 @@
+Project: Aegis
+Release: 1.0.2
+Modules: Core(C/C++), Interface(Python/TS), Bridge(Java)
+Last Verified: 2026-02-24
