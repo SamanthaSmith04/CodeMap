@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeMap</title>
+  <style>
+    
+    html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.water-video {
+  position: fixed;     /* THIS is the key */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* fills screen */
+  z-index: -1;         /* pushes behind content */
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  color: white;
+  text-align: center;
+  margin-top: 25vh;
+  font-family: Arial, sans-serif;
+}
+
+
+    .container {
+      max-width: 700px;
+      margin: 70px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .upload-box {
+      border: 2px dashed #ccc;
+      padding: 30px;
+      text-align: center;
+      border-radius: 8px;
+    }
+
+    input[type="file"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      font-size: 16px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #4338ca;
+    }
+    .hidden {
+      display: none;
+    }
+    select {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+
+<body>
+    <video autoplay muted loop playsinline class="water-video">
+        <source src="water.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      
+      
+
+  <!-- Page 1: Upload -->
+  <div class="container" id="page-upload">
+    <h1>CodeMap</h1>
+    <div class="upload-box">
+      <p>Upload a local directory or enter repository information</p>
+      <input type="file" id="fileInput" />
+      <p style="margin: 15px 0;">OR</p>
+      <input type="text" id="repoName" placeholder="Repository Name"/>
+      <input type="text" id="ownerName" placeholder="Owner Name"/>
+      <button onclick="goToNextPage()">Continue</button>
+    </div>
+  </div>
+
+  
+  <!-- Page 2: File Selection -->
+  <div class="container hidden" id="page-files">
+    <h1>Select a File</h1>
+    <p id="projectName"></p>
+    <select id="fileDropdown">
+      <option>Select a file...</option>
+    </select>
+  </div>
+
+  <script>
+    function goToNextPage() {
+      const fileInput = document.getElementById('fileInput');
+      const repoName = document.getElementById('repoName');
+      const ownerName = document.getElementById('ownerName');
+
+
+      if (!fileInput.files.length && (repoName.value != "Repository Name")&& (ownerName.value != "Owner Name")) {
+        alert('Please upload a file or enter github information');
+        return;
+      }
+
+      // Simulated file list (this would come from backend later)
+      const files = fileInput.files.length
+        ? Array.from(fileInput.files).map(f => f.name)
+        : ['README.md', 'src/', 'package.json'];
+
+      document.getElementById('page-upload').classList.add('hidden');
+      document.getElementById('page-files').classList.remove('hidden');
+
+      document.getElementById('projectName').innerText =
+        fileInput.files.length
+          ? `Uploaded: ${fileInput.files[0].name}`
+          : `Link: ${linkInput.value}`;
+
+      const dropdown = document.getElementById('fileDropdown');
+      dropdown.innerHTML = '<option>Select a file...</option>';
+
+      files.forEach(file => {
+        const option = document.createElement('option');
+        option.value = file;
+        option.textContent = file;
+        dropdown.appendChild(option);
+      });
+    }
+  </script>
+
+</body>
+</html>
