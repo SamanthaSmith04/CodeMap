@@ -42,7 +42,6 @@ def check_repo_exists(url):
     """
         Makes a test call to the API to validate the repo exists
         Parameters:
-            headers: The header for the API request
             url: The link to the starting point of the repo
         Returns:
             True if repo is found, false otherwise
