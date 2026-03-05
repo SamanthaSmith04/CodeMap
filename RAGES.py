@@ -19,22 +19,21 @@ Settings.llm = Ollama(model="llama3.1", request_timeout=120.0)
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
-def download_github_repo(owner: str, repo: str) -> str:
+def download_github_repo(repo_url:str) -> str:
     """
     Download a GitHub repository and save files locally using GitHub API calls.
     
     Args:
-        owner: GitHub repository owner
-        repo: GitHub repository name
+        repo_url: The url to the repository
         
     Returns:
         Path to the local directory containing downloaded files
     """
-    print(f"Downloading GitHub repository: {owner}/{repo}")
+    print(f"Downloading GitHub repository: {repo_url}")
     
     try:
         # Set up GitHub connection
-        headers, url = set_up_github_connection(owner, repo)
+        headers, url = set_up_github_connection(repo_url)
         
         # Download repository contents
         get_repo_contents(headers, url)
@@ -131,11 +130,10 @@ async def main():
 
     elif choice == "2":
         # GitHub repository
-        owner = input("Enter GitHub repository owner: ").strip()
-        repo = input("Enter GitHub repository name: ").strip()
         
+        url = input("Enter GitHub repository url: ").strip()
         try:
-            repo_path = download_github_repo(owner, repo)
+            repo_path = download_github_repo(url)
         except Exception as e:
             print(f"✗ Failed to download repository: {e}")
             return
