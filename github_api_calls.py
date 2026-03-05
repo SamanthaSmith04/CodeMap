@@ -38,7 +38,7 @@ def set_up_github_connection(repo_url, token_location="GITHUBACCESSTOKEN"):
 
     return headers, url
 
-def check_repo_exists(headers, url):
+def check_repo_exists(url):
     """
         Makes a test call to the API to validate the repo exists
         Parameters:
@@ -47,6 +47,14 @@ def check_repo_exists(headers, url):
         Returns:
             True if repo is found, false otherwise
     """
+
+    repo_names = "/".join(url.rstrip(".git").split("/")[-2:])
+
+    url = f"https://api.github.com/repos/{repo_names}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
     response = requests.get(url, headers=headers)
 
     response.raise_for_status()
