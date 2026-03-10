@@ -35,10 +35,12 @@
     .container {
       max-width: 700px;
       margin: 70px auto;
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      padding: 35px;
+      background: rgba(255, 255, 255, 0.75); /* translucent white */
+      backdrop-filter: blur(12px);           /* glass blur effect */
+      -webkit-backdrop-filter: blur(12px);   /* Safari support */
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
     }
     h1 {
       text-align: center;
@@ -90,16 +92,16 @@
       
 
   <!-- Page 1: Upload -->
-  <div class="container" id="page-upload">
+  <div class="container" id="page-repo">
     <h1>CodeMap</h1>
-    <div class="upload-box">
-      <p>Upload a local directory or enter repository information</p>
-      <input type="file" id="fileInput" />
-      <p style="margin: 15px 0;">OR</p>
-      <input type="text" id="repoName" placeholder="Repository Name"/>
-      <input type="text" id="ownerName" placeholder="Owner Name"/>
-      <button onclick="goToNextPage()">Continue</button>
-    </div>
+    <p>Analyze a GitHub repository or upload your code</p>
+    <h3>Option 1: GitHub Repository</h3>
+    <input type="text" id="repoLink" placeholder="Paste GitHub repo link here">
+    <button onclick="loadGithubRepo()">Load Repository</button>
+    <hr>
+    <h3>Option 2: Upload Files</h3>
+    <input type="file" multiple webkitdirectory>
+    <button onclick="loadLocalFiles()">Upload Files</button>
   </div>
 
   
@@ -146,6 +148,34 @@
         option.textContent = file;
         dropdown.appendChild(option);
       });
+    }
+
+    function loadGithubRepo() {
+
+    const repoLink = document.getElementById("repoLink").value;
+
+    if (!repoLink) {
+      alert("Please paste a GitHub repo link");
+      return;
+    }
+
+    console.log("Loading repo:", repoLink);
+
+    goToFilePage();
+    }
+
+    function loadLocalFiles() {
+
+    const files = document.getElementById("fileUpload").files;
+
+    if (files.length === 0) {
+      alert("Please upload files");
+      return;
+    }
+
+    console.log("Uploaded files:", files);
+
+    goToFilePage();
     }
   </script>
 
