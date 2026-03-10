@@ -17,17 +17,18 @@
       
 
   <!-- Page 1: Upload -->
-  <div class="container" id="page-repo">
-    <h1>CodeMap</h1>
-    <p>Analyze a GitHub repository or upload your code</p>
-    <h3>Option 1: GitHub Repository</h3>
-    <input type="text" id="repoLink" placeholder="Paste GitHub repo link here">
-    <button onclick="loadGithubRepo()">Load Repository</button>
-    <hr>
-    <h3>Option 2: Upload Files</h3>
-    <input type="file" multiple webkitdirectory>
-    <button onclick="loadLocalFiles()">Upload Files</button>
+ <div class="container" id="page-upload">
+  <h1>CodeMap</h1>
+  <div class="upload-box">
+    <p>Upload a local directory or enter repository information</p>
+    <input type="file" id="fileInput" />
+    <p style="margin: 15px 0;">OR</p>
+    <input type="text" id="repoURL" placeholder="Repository Link"/>
+    <button id="Continue">Continue</button>
+    <p id="status"></p>
   </div>
+</div>
+
 
   <script src="script.js"></script>
   
