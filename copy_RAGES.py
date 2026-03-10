@@ -148,8 +148,23 @@ async def main():
         choice = int(input("\nSelect a template number: "))
         if 1 <= choice <= len(template_keys):
             selected_config = templates[template_keys[choice - 1]]
+
+            enhanced_prompt = selected_config['prompt']
+
+            # Special handling for template #8 (specific file)
+            if selected_config.get('id') == "C1":  # Change "C1" if your JSON ID for #8 is different
+                file_path = input("Enter the specific file path to explain (e.g. src/utils.py): ").strip()
+                if file_path:
+                    enhanced_prompt += (
+                        f"\nFocus ONLY on the file: '{file_path}'.\n"
+                        "Explain what this file does at a high level, its role in the system, "
+                        "and its key responsibilities. Ignore all other files."
+                    )
+                else:
+                    print("No file path provided. Using general overview instead.")
+
             print(f"\nRunning: {selected_config['description']}")
-            answer = await run_pipeline(repo_path, selected_config['prompt'])
+            answer = await run_pipeline(repo_path, enhanced_prompt)
             print("\n" + "="*60)
             print(f"FINAL OUTPUT: {selected_config['description']}")
             print("="*60)
