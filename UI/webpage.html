@@ -14,22 +14,47 @@
         Your browser does not support the video tag.
       </video>
       
-      
-
   <!-- Page 1: Upload -->
- <div class="container" id="page-upload">
-  <h1>CodeMap</h1>
-  <div class="upload-box">
-    <p>Upload a local directory or enter repository information</p>
-    <input type="file" id="fileInput" />
-    <button id="Continue">Upload Files</button>
-    <p style="margin: 15px 0;">OR</p>
-    <input type="text" id="repoURL" placeholder="Repository Link"/>
-    <button id="Continue">Load Repository</button>
-    <p id="status"></p>
+  <div class="container">
+    <h1>CodeMap</h1>
+  
+    <div class="upload-box">
+      <p style="margin-bottom: 2rem; font-size: 1.1rem;">
+        Upload a local directory or enter repository link
+      </p>
+  
+      <!-- File upload – now in the same style as the text input -->
+      <div style="margin-bottom: 1.5rem;">
+        <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+          Choose local files or folder
+        </label>
+        <input type="file" 
+          id="fileInput" 
+          webkitdirectory 
+          directory 
+          multiple 
+        />
+      </div>
+  
+      <button id="uploadButton">Upload Files</button>
+  
+      <p style="margin: 2rem 0; font-weight: bold; color: #4b5563;">OR</p>
+  <div style="margin-bottom: 1.5rem;">
+      <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+        Upload Github repository
+      </label>
+      <!-- Repository URL – already styled nicely by your CSS -->
+      <input 
+        type="text" 
+        id="repoURL" 
+        placeholder="Repository Link (e.g. https://github.com/user/repo)"
+      />
   </div>
-</div>
-
+      <button id="loadRepoButton">Load Repository</button>
+  
+      <p id="status"></p>
+    </div>
+  </div>
 
   <script src="script.js"></script>
   
