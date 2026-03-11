@@ -32,17 +32,14 @@ def download_github_repo(owner: str, repo: str, temp_dir: str) -> str:
         
         # Set up GitHub connection
         headers, url = set_up_github_connection(owner, repo)
-        get_repo_contents(headers, url) 
-        get_commit_history(headers, url)
-        get_issue_history(headers, url)
-    
+        get_repo_contents(headers, url, save_path=temp_dir) 
+        get_commit_history(headers, url, save_path=temp_dir)
+        get_issue_history(headers, url, save_path=temp_dir)
+
         return temp_dir
         
     except Exception as e:
         print(f"Error downloading repository: {e}")
-        # Clean up
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
         raise
 
 def setup_fresh_index(index_name: str):
@@ -195,10 +192,16 @@ async def main():
             except ValueError:
                 print("Please enter a number.")
 
-    finally:
-        # Cleanup
-        if not is_resume and repo_path and os.path.exists(repo_path):
-            print(f"\n--- Cleaning up temporary files for session {session_id} ---")
-            shutil.rmtree(repo_path)
-        
+    finally:    
         print(f"Session {session_id} closed. You can resume this later using the ID.")
+
+if __name__ == "__main__":
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        print("\nStopped by user.")
+    finally:
+        loop.stop()
+        print("Done.")
