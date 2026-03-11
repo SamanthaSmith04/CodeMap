@@ -75,7 +75,7 @@ def load_prompt_templates():
         return json.load(f)
 
 
-async def run_pipeline(repo_path: str, user_prompt: str):
+async def run_pipeline(repo_path: str, user_prompt: str, selected_config=None):
     # 1. Start Fresh
     setup_fresh_index()
 
@@ -104,6 +104,11 @@ async def run_pipeline(repo_path: str, user_prompt: str):
     # 5. Query
     index = VectorStoreIndex.from_vector_store(vector_store)
     query_engine = index.as_query_engine()
+    # Dynamically boost retrieval for "list" style templates
+    top_k = 5 if selected_config and ("list" in selected_config['description'].lower() or "file" in selected_config['description'].lower()) else 5
+
+    # Create query engine with higher top_k for list templates
+    query_engine = index.as_query_engine(similarity_top_k=top_k)
     print("\n--- Generating Response via Ollama ---")
     response = await query_engine.aquery(user_prompt)
     await async_es_client.close()
@@ -164,7 +169,7 @@ async def main():
                     print("No file path provided. Using general overview instead.")
 
             print(f"\nRunning: {selected_config['description']}")
-            answer = await run_pipeline(repo_path, enhanced_prompt)
+            answer = await run_pipeline(repo_path, enhanced_prompt, selected_config)
             print("\n" + "="*60)
             print(f"FINAL OUTPUT: {selected_config['description']}")
             print("="*60)

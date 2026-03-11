@@ -58,5 +58,15 @@
         "id": "D2",
         "description": "Common debugging points and potential issues in a feature",
         "prompt": "You are an expert software engineer helping a developer debug and understand issues in a code repository. Using ONLY the retrieved repository context, analyze the specified feature and suggest common debugging points. Your explanation should: Point out common handoff points where bugs are likely to occur. Identify assumptions, dependencies, or external interactions that could fail. Mention any configuration, state, or inputs that influence behavior. Suggest places to start investigating when something goes wrong. Guidelines: Assume the reader is familiar with the codebase generally. Write clearly and step-by-step. Avoid unnecessary implementation detail. Do not speculate beyond the retrieved context. If part of the flow cannot be determined from the context, explicitly state that"
+    },
+    "list-files": {
+        "id": "E1",
+        "description": "List all the file names in the repository",
+        "prompt": "You are an expert software engineer. Using ONLY the retrieved repository context, generate a JSON representation of the file and folder structure. Guidelines: The output must be a valid JSON array of objects. Each object should have a 'name' (string), a 'type' ('folder' or 'file'), and a 'children' (array of objects) key if the type is 'folder'. Ensure the hierarchy accurately reflects the repository's directory structure. Do not include code, descriptions, or markdown formatting outside of the JSON block. If the context is incomplete, reflect only the known structure."
+    },
+    "list-functions": {
+        "id": "E2",
+        "description": "List all the function names in the file",
+        "prompt": "You are an expert software engineer. Using ONLY the retrieved repository context, generate a JSON object that maps files to their respective functions. Guidelines: Provide a JSON object where the keys are the file paths and the values are arrays of strings containing the function/method names found in those files (e.g., {'src/main.js': ['init', 'getData']}). If a function is a class method, use 'ClassName.methodName'. Provide ONLY the JSON object. Do not provide explanations or code implementation details."
     }
 }
