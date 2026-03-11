@@ -7,7 +7,7 @@ from llama_index.core.ingestion import IngestionPipeline
 from llama_index.vector_stores.elasticsearch import ElasticsearchStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
-from github_api_calls import set_up_github_connection, get_repo_contents
+from github_api_calls import set_up_github_connection, get_repo_contents, get_commit_history, get_issue_history
 
 ES_URL = "http://127.0.0.1:9201"
 INDEX_NAME = "github_rag_index"
@@ -15,7 +15,7 @@ EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 PROMPTS_FILE = "CodeMap-prompts/prompt_templates.json"
 
 Settings.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME)
-Settings.llm = Ollama(model="llama3.1", request_timeout=120.0)
+Settings.llm = Ollama(model="llama3.1", request_timeout=360.0)
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
@@ -38,6 +38,11 @@ def download_github_repo(owner: str, repo: str) -> str:
         
         # Download repository contents
         get_repo_contents(headers, url)
+
+        get_commit_history(headers, url)
+        
+        get_issue_history(headers,url)
+    
         
         # Return the temp directory path where files are saved
         temp_dir = "temp_files"
@@ -79,7 +84,7 @@ def load_prompt_templates():
     with open(PROMPTS_FILE, "r") as f:
         return json.load(f)
 
-async def run_pipeline(repo_path: str, user_prompt: str):
+async def set_up_pipeline(repo_path: str):
     # 1. Start Fresh
     setup_fresh_index()
 
@@ -104,7 +109,11 @@ async def run_pipeline(repo_path: str, user_prompt: str):
         vector_store=vector_store,
     )
     await pipeline.arun(documents=documents, show_progress=True)
-    
+
+    return vector_store, async_es_client
+
+
+async def run_query(vector_store, async_es_client, user_prompt: str):
     # 5. Query
     index = VectorStoreIndex.from_vector_store(vector_store)
     query_engine = index.as_query_engine()
@@ -147,28 +156,30 @@ async def main():
     templates = load_prompt_templates()
     if not templates: return
 
-    print("\n--- Available Analysis Templates ---")
-    template_keys = list(templates.keys())
-    for idx, key in enumerate(template_keys, 1):
-        print(f"[{idx}] {templates[key]['description']}")
+    vector_store, async_es_client = await set_up_pipeline(repo_path)
+    while True:
+        print("\n--- Available Analysis Templates ---")
+        template_keys = list(templates.keys())
+        for idx, key in enumerate(template_keys, 1):
+            print(f"[{idx}] {templates[key]['description']}")
 
-    try:
-        choice = int(input("\nSelect a template number: "))
-        if 1 <= choice <= len(template_keys):
-            selected_config = templates[template_keys[choice - 1]]
-            print(f"\nRunning: {selected_config['description']}")
-            
-            answer = await run_pipeline(repo_path, selected_config['prompt'])
-            
-            print("\n" + "="*60)
-            print(f"FINAL OUTPUT: {selected_config['description']}")
-            print("="*60)
-            print(answer)
-            print("="*60 + "\n")
-        else:
-            print("Invalid choice.")
-    except ValueError:
-        print("Invalid input.")
+        try:
+            choice = int(input("\nSelect a template number: "))
+            if 1 <= choice <= len(template_keys):
+                selected_config = templates[template_keys[choice - 1]]
+                print(f"\nRunning: {selected_config['description']}")
+                
+                answer = await run_query(vector_store, async_es_client, selected_config['prompt'])
+                
+                print("\n" + "="*60)
+                print(f"FINAL OUTPUT: {selected_config['description']}")
+                print("="*60)
+                print(answer)
+                print("="*60 + "\n")
+            else:
+                print("Invalid choice.")
+        except ValueError:
+            print("Invalid input.")
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
