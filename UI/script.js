@@ -28,7 +28,7 @@ function buildPromptList(containerId, runBtnId) {
   PROMPTS.forEach(item => {
     const btn = document.createElement('button');
     btn.className = 'prompt-option';
-    btn.innerHTML = `<span class="prompt-id">${item.id}</span> ${item.desc}`;
+    btn.innerHTML = `<span class="prompt-id"></span> ${item.desc}`;
     btn.addEventListener('click', () => {
       container.querySelectorAll('.prompt-option').forEach(o => o.classList.remove('selected'));
       btn.classList.add('selected');
