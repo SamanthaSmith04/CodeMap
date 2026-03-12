@@ -48,20 +48,24 @@ html, body {
     input[type="file"], input[type="text"] {
       width: 100%;
       padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
       margin-top: 15px;
     }
     button {
       margin-top: 20px;
       padding: 12px 20px;
       font-size: 16px;
-      background: #4f46e5;
+      background: #93e8f1;
       color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
     }
     button:hover {
-      background: #4338ca;
+      background: #93e8f1;
     }
     .hidden {
       display: none;
@@ -80,7 +84,7 @@ html, body {
 
   input[type="file"] {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     background: white;
@@ -89,7 +93,7 @@ html, body {
   
   input[type="file"]::-webkit-file-upload-button {
     padding: 8px 16px;
-    background: #4f46e5;
+    background: #93e8f1;
     color: white;
     border: none;
     border-radius: 4px;
@@ -97,5 +101,29 @@ html, body {
   }
   
   input[type="file"]::-webkit-file-upload-button:hover {
-    background: #4338ca;
+    background: #93e8f1;
+  }
+
+  input[type="text"]::placeholder {
+    color: #9ca3af;
+  }
+
+  .prompt-option {
+    background: rgb(190, 255, 240);
+    color: black;
+    border: 1px solid #d1d5db;
+    width: 100%;
+    text-align: left;
+    font-size: 0.60rem;
+  }
+  
+  .prompt-option:hover {
+    border-color: #93e8f1;
+    background: #f0fdfe;
+  }
+  
+  .prompt-option.selected {
+    border-color: #93e8f1;
+    background: #e0f9fc;
+    font-weight: 500;
   }

@@ -15,18 +15,18 @@
       </video>
       
   <!-- Page 1: Upload -->
-  <div class="container">
+  <div class="container" id="homepage">
     <h1>CodeMap</h1>
   
     <div class="upload-box">
-      <p style="margin-bottom: 2rem; font-size: 1.1rem;">
+      <p style="margin-bottom: 1.5rem; font-size: 1.1rem;">
         Upload a local directory or enter repository link
       </p>
   
       <!-- File upload – now in the same style as the text input -->
-      <div style="margin-bottom: 1.5rem;">
+      <div style="margin-bottom: 0.5rem;">
         <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-          Choose local files or folder
+          Option 1: Choose local files or folder
         </label>
         <input type="file" 
           id="fileInput" 
@@ -36,12 +36,11 @@
         />
       </div>
   
-      <button id="uploadButton">Upload Files</button>
-  
-      <p style="margin: 2rem 0; font-weight: bold; color: #4b5563;">OR</p>
-  <div style="margin-bottom: 1.5rem;">
+      <button id="uploadButton" style="margin-bottom: 3rem">Upload Files</button>
+
+  <div style="margin-bottom: 0.5rem;">
       <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-        Upload Github repository
+        Option 2: Upload Github repository
       </label>
       <!-- Repository URL – already styled nicely by your CSS -->
       <input 
@@ -56,82 +55,30 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
-  
-  <!-- Page 2: File Selection 
-  <div class="container hidden" id="page-files">
-    <h1>Select a File</h1>
-    <p id="projectName"></p>
-    <select id="fileDropdown">
-      <option>Select a file...</option>
-    </select>
-  </div>-->
+   <!-- Page 2: File prompt selection -->
+   <div class="container hidden" id="page-files">
+    <h1>CodeMap</h1>
+    <div class="upload-box">
+      <p style="margin-bottom: 1rem; font-size: 1.1rem;">Files uploaded. Choose an analysis:</p>
+      <div id="files-list" style="text-align: left; margin-bottom: 1.5rem;"></div>
+      <div id="prompt-select-files"></div>
+      <button id="run-btn-files" disabled>Run</button>
+      <button id="backButton">← Back</button>
+    </div>
+  </div>
 
+   <!-- Page 3: Repo prompt selection -->
+   <div class="container hidden" id="page-repo">
+    <h1>CodeMap</h1>
+    <div class="upload-box">
+      <p style="margin-bottom: 1rem; font-size: 1.1rem;">Repository loaded. Choose an analysis:</p>
+      <p id="repo-name-display" style="margin-bottom: 1.5rem; font-weight: 500; color: #4b5563;"></p>
+      <div id="prompt-select-repo"></div>
+      <button id="run-btn-repo" disabled>Run</button>
+      <button id="backButton2">← Back</button>
+    </div>
+  </div>
 
- <!--  <script>
-    function goToNextPage() {
-      const fileInput = document.getElementById('fileInput');
-      const repoName = document.getElementById('repoName');
-      const ownerName = document.getElementById('ownerName');
-
-
-      if (!fileInput.files.length && (repoName.value != "Repository Name")&& (ownerName.value != "Owner Name")) {
-        alert('Please upload a file or enter github information');
-        return;
-      }
-
-      // Simulated file list (this would come from backend later)
-      const files = fileInput.files.length
-        ? Array.from(fileInput.files).map(f => f.name)
-        : ['README.md', 'src/', 'package.json'];
-
-      document.getElementById('page-upload').classList.add('hidden');
-      document.getElementById('page-files').classList.remove('hidden');
-
-      document.getElementById('projectName').innerText =
-        fileInput.files.length
-          ? `Uploaded: ${fileInput.files[0].name}`
-          : `Link: ${linkInput.value}`;
-
-      const dropdown = document.getElementById('fileDropdown');
-      dropdown.innerHTML = '<option>Select a file...</option>';
-
-      files.forEach(file => {
-        const option = document.createElement('option');
-        option.value = file;
-        option.textContent = file;
-        dropdown.appendChild(option);
-      });
-    }
-
-    function loadGithubRepo() {
-
-    const repoLink = document.getElementById("repoLink").value;
-
-    if (!repoLink) {
-      alert("Please paste a GitHub repo link");
-      return;
-    }
-
-    console.log("Loading repo:", repoLink);
-
-    goToFilePage();
-    }
-
-    function loadLocalFiles() {
-
-    const files = document.getElementById("fileUpload").files;
-
-    if (files.length === 0) {
-      alert("Please upload files");
-      return;
-    }
-
-    console.log("Uploaded files:", files);
-
-    goToFilePage();
-    }
-  </script>
-
-</body>
+  <script src="script.js"></script> 
+</body> 
 </html>
