@@ -109,12 +109,12 @@ html, body {
   }
 
   .prompt-option {
-    background: rgb(190, 255, 240);
+    background: #93e8f1;
     color: black;
     border: 1px solid #d1d5db;
     width: 100%;
     text-align: left;
-    font-size: 0.60rem;
+    font-size: 0.75rem;
   }
   
   .prompt-option:hover {
