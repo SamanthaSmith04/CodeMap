@@ -108,3 +108,41 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
   status.textContent = "Please upload a file OR paste a GitHub repo URL.";
 
 });
+
+//Adding things from here and below for page three where the results are posted 
+//and the dropdown for file and function
+
+//Would add the file names and the feature names here after we get it.
+const data = {
+  files: ["index.js", "app.py", "style.css"],
+  features: ["Search", "Upload", "Download"]
+};
+
+function populateDropdown(id, items) {
+  const dropdown = document.getElementById(id);
+  dropdown.innerHTML = '<option value="">Select an option</option>';
+
+  items.forEach(item => {
+    let option = document.createElement("option");
+    option.value = item;
+    option.textContent = item;
+    dropdown.appendChild(option);
+  });
+}
+
+document.getElementById("run-btn-repo").addEventListener("click", async () => {
+  if(PROMPTS.id === "C1"){
+    //Dropdown for file
+    populateDropdown("fileDropdown", data.files);
+  }
+  if(PROMPTS.id === "C2"){
+    //Dropdown for feature
+    populateDropdown("featureDropdown", data.features);
+  }
+  if(PROMPTS.id === "C3" || PROMPTS.id === "D2"){
+    //Dropdown for file & then feature
+    populateDropdown("fileDropdown", data.files);
+    populateDropdown("featureDropdown", data.features);
+  }
+
+});
