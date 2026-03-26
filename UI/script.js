@@ -156,35 +156,100 @@ function setupPage3Dropdowns(prompt) {
   fileSection.classList.add("hidden");
   functionSection.classList.add("hidden");
   functionSelect.disabled = true;
+  
+  switch(prompt.id) {
+
+    case "A1":
+        //Call func
+      break;
+      
+    case "A2":
+        //Call func
+      break;
+
+    case "A3":
+        //Call func
+      break;
+    
+    case "B1":
+        //Call func
+      break; 
+
+    case "B2":
+        //Call func
+      break;
+
+    case "B3":
+        //Call func
+      break;
+
+    case "B4":
+        //Call func
+      break;
+
+    case "C1":
+     // File dropdown only
+      populateSelect(fileSelect, esFiles, "-- Choose a file --");
+      fileSection.classList.remove("hidden");
+      break;
+
+    case "C2":
+      // Function dropdown only (not dependent on a file)
+      populateSelect(functionSelect, esAllFunctions, "-- Choose a function --");
+      functionSelect.disabled = false;
+      functionSection.classList.remove("hidden");
+      break;
+      
+    case "C3":
+        // File first, then function dropdown populates based on selection
+      populateSelect(fileSelect, esFiles, "-- Choose a file --");
+      populateSelect(functionSelect, [], "-- Select a file first --");
+      fileSection.classList.remove("hidden");
+      functionSection.classList.remove("hidden");
  
-  if (prompt.id === "C1") {
-    // File dropdown only
-    populateSelect(fileSelect, esFiles, "-- Choose a file --");
-    fileSection.classList.remove("hidden");
+      fileSelect.addEventListener("change", () => {
+        const selectedFile = fileSelect.value;
+        if (selectedFile && esFunctionsByFile[selectedFile]) {
+          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
+          functionSelect.disabled = false;
+        } else {
+          populateSelect(functionSelect, [], "-- Select a file first --");
+          functionSelect.disabled = true;
+        }
+      });
+      break;
+
+    case "D1":
+        //Call func
+      break; 
+    
+    case "D2":
+        // File first, then function dropdown populates based on selection
+      populateSelect(fileSelect, esFiles, "-- Choose a file --");
+      populateSelect(functionSelect, [], "-- Select a file first --");
+      fileSection.classList.remove("hidden");
+      functionSection.classList.remove("hidden");
  
-  } else if (prompt.id === "C2") {
-    // Function dropdown only (not dependent on a file)
-    populateSelect(functionSelect, esAllFunctions, "-- Choose a function --");
-    functionSelect.disabled = false;
-    functionSection.classList.remove("hidden");
- 
-  } else if (prompt.id === "C3" || prompt.id === "D2") {
-    // File first, then function dropdown populates based on selection
-    populateSelect(fileSelect, esFiles, "-- Choose a file --");
-    populateSelect(functionSelect, [], "-- Select a file first --");
-    fileSection.classList.remove("hidden");
-    functionSection.classList.remove("hidden");
- 
-    fileSelect.addEventListener("change", () => {
-      const selectedFile = fileSelect.value;
-      if (selectedFile && esFunctionsByFile[selectedFile]) {
-        populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-        functionSelect.disabled = false;
-      } else {
-        populateSelect(functionSelect, [], "-- Select a file first --");
-        functionSelect.disabled = true;
-      }
-    });
+      fileSelect.addEventListener("change", () => {
+        const selectedFile = fileSelect.value;
+        if (selectedFile && esFunctionsByFile[selectedFile]) {
+          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
+          functionSelect.disabled = false;
+        } else {
+          populateSelect(functionSelect, [], "-- Select a file first --");
+          functionSelect.disabled = true;
+        }
+      });
+      break;
+
+    case "E1":
+        //Call func
+      break; 
+
+    case "E2":
+        //Call func
+      break; 
+
   }
 }
  
