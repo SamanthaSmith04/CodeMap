@@ -33,8 +33,8 @@ def download_github_repo(owner: str, repo: str, temp_dir: str) -> str:
         # Set up GitHub connection
         headers, url = set_up_github_connection(owner, repo)
         get_repo_contents(headers, url, save_path=temp_dir) 
-        get_commit_history(headers, url, save_path=temp_dir)
-        get_issue_history(headers, url, save_path=temp_dir)
+        # get_commit_history(headers, url, save_path=temp_dir)
+        # get_issue_history(headers, url, save_path=temp_dir)
 
         return temp_dir
         
