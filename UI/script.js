@@ -20,6 +20,8 @@ function showPage(id) {
   document.getElementById(id).classList.remove('hidden');
 }
 
+let selectedPrompt = null;
+
 function buildPromptList(containerId, runBtnId) {
   const container = document.getElementById(containerId);
   const runBtn    = document.getElementById(runBtnId);
@@ -32,6 +34,7 @@ function buildPromptList(containerId, runBtnId) {
     btn.addEventListener('click', () => {
       container.querySelectorAll('.prompt-option').forEach(o => o.classList.remove('selected'));
       btn.classList.add('selected');
+      selectedPrompt = item;
       runBtn.disabled = false;
     });
     container.appendChild(btn);
@@ -130,19 +133,20 @@ function populateDropdown(id, items) {
   });
 }
 
-document.getElementById("run-btn-repo").addEventListener("click", async () => {
-  if(PROMPTS.id === "C1"){
-    //Dropdown for file
-    populateDropdown("fileDropdown", data.files);
-  }
-  if(PROMPTS.id === "C2"){
-    //Dropdown for feature
-    populateDropdown("featureDropdown", data.features);
-  }
-  if(PROMPTS.id === "C3" || PROMPTS.id === "D2"){
-    //Dropdown for file & then feature
-    populateDropdown("fileDropdown", data.files);
-    populateDropdown("featureDropdown", data.features);
-  }
-
+document.getElementById("run-btn-files").addEventListener("click", () => {
+  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
+  document.getElementById("backButton3").dataset.prev = "page-files";
+  showPage("page-results");
+});
+ 
+document.getElementById("run-btn-repo").addEventListener("click", () => {
+  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
+  document.getElementById("backButton3").dataset.prev = "page-repo";
+  showPage("page-results");
+});
+ 
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("backButton3").addEventListener("click", () => {
+    showPage(document.getElementById("backButton3").dataset.prev || "homepage");
+  });
 });
