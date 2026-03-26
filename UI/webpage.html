@@ -87,6 +87,15 @@
     <h1>CodeMap</h1>
     <div class="upload-box">
       <h2 id="selected-prompt-title" style="margin-bottom: 1.5rem; color: #1f2937;"></h2>
+      <div id="file-dropdown-section" class="hidden" style="margin-bottom: 1.25rem; text-align: left;">
+        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Select a file:</label>
+        <select id="file-select"><option value="">-- Choose a file --</option></select>
+      </div>
+ 
+      <div id="function-dropdown-section" class="hidden" style="margin-bottom: 1.25rem; text-align: left;">
+        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Select a function:</label>
+        <select id="function-select" disabled><option value="">-- Choose a function --</option></select>
+      </div>
       <div id="results-content"></div>
       <button id="backButton3">← Back</button>
     </div>
