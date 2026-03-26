@@ -1,0 +1,7 @@
+{
+    "app_name": "Project Aegis",
+    "version": "1.0.2",
+    "encryption_standard": "AES-256",
+    "buffer_size_kb": 1024,
+    "debug_mode": false
+}
