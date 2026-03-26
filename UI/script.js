@@ -150,6 +150,8 @@ function setupPage3Dropdowns(prompt) {
   const fileSelect      = document.getElementById("file-select");
   const functionSelect  = document.getElementById("function-select");
  
+  if (!fileSection || !functionSection) return;
+
   // Hide both to start
   fileSection.classList.add("hidden");
   functionSection.classList.add("hidden");
