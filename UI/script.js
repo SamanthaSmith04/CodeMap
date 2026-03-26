@@ -115,38 +115,94 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
 //Adding things from here and below for page three where the results are posted 
 //and the dropdown for file and function
 
-//Would add the file names and the feature names here after we get it.
-const data = {
-  files: ["index.js", "app.py", "style.css"],
-  features: ["Search", "Upload", "Download"]
+// =============================================================================
+// TODO: REPLACE BELOW WITH ELASTICSEARCH DATA
+// =============================================================================
+ 
+// List of all file names in the repo
+const esFiles = ["index.js", "app.py", "style.css"];
+ 
+// Map of file name → array of function names inside that file
+const esFunctionsByFile = {
+  "index.js":   ["handleClick", "renderApp", "fetchData"],
+  "app.py":     ["main", "process_input", "connect_db"],
+  "style.css":  []
 };
-
-function populateDropdown(id, items) {
-  const dropdown = document.getElementById(id);
-  dropdown.innerHTML = '<option value="">Select an option</option>';
-
+ 
+// Flat list of every function across all files (auto-derived — do not edit)
+const esAllFunctions = [...new Set(Object.values(esFunctionsByFile).flat())];
+ 
+// =============================================================================
+ 
+function populateSelect(selectEl, items, placeholder) {
+  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
   items.forEach(item => {
-    let option = document.createElement("option");
-    option.value = item;
-    option.textContent = item;
-    dropdown.appendChild(option);
+    const opt = document.createElement("option");
+    opt.value = item;
+    opt.textContent = item;
+    selectEl.appendChild(opt);
   });
 }
-
-document.getElementById("run-btn-files").addEventListener("click", () => {
-  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
-  document.getElementById("backButton3").dataset.prev = "page-files";
-  showPage("page-results");
-});
  
-document.getElementById("run-btn-repo").addEventListener("click", () => {
-  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
-  document.getElementById("backButton3").dataset.prev = "page-repo";
-  showPage("page-results");
-});
+function setupPage3Dropdowns(prompt) {
+  const fileSection     = document.getElementById("file-dropdown-section");
+  const functionSection = document.getElementById("function-dropdown-section");
+  const fileSelect      = document.getElementById("file-select");
+  const functionSelect  = document.getElementById("function-select");
  
+  // Hide both to start
+  fileSection.classList.add("hidden");
+  functionSection.classList.add("hidden");
+  functionSelect.disabled = true;
+ 
+  if (prompt.id === "C1") {
+    // File dropdown only
+    populateSelect(fileSelect, esFiles, "-- Choose a file --");
+    fileSection.classList.remove("hidden");
+ 
+  } else if (prompt.id === "C2") {
+    // Function dropdown only (not dependent on a file)
+    populateSelect(functionSelect, esAllFunctions, "-- Choose a function --");
+    functionSelect.disabled = false;
+    functionSection.classList.remove("hidden");
+ 
+  } else if (prompt.id === "C3" || prompt.id === "D2") {
+    // File first, then function dropdown populates based on selection
+    populateSelect(fileSelect, esFiles, "-- Choose a file --");
+    populateSelect(functionSelect, [], "-- Select a file first --");
+    fileSection.classList.remove("hidden");
+    functionSection.classList.remove("hidden");
+ 
+    fileSelect.addEventListener("change", () => {
+      const selectedFile = fileSelect.value;
+      if (selectedFile && esFunctionsByFile[selectedFile]) {
+        populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
+        functionSelect.disabled = false;
+      } else {
+        populateSelect(functionSelect, [], "-- Select a file first --");
+        functionSelect.disabled = true;
+      }
+    });
+  }
+}
+ 
+function goToPage3(prevPage) {
+  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
+  document.getElementById("backButton3").dataset.prev = prevPage;
+  setupPage3Dropdowns(selectedPrompt);
+  showPage("page-results");
+}
 document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("run-btn-files").addEventListener("click", () => {
+    goToPage3("page-files");
+  });
+ 
+  document.getElementById("run-btn-repo").addEventListener("click", () => {
+    goToPage3("page-repo");
+  });
+ 
   document.getElementById("backButton3").addEventListener("click", () => {
     showPage(document.getElementById("backButton3").dataset.prev || "homepage");
   });
 });
+
