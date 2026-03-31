@@ -10,6 +10,9 @@ from llama_index.vector_stores.elasticsearch import ElasticsearchStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from github_api_calls import set_up_github_connection, get_repo_contents, get_commit_history, get_issue_history
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
 
 ES_URL = "http://127.0.0.1:9201"
 INDEX_PREFIX = "github_rag_index"
@@ -247,6 +250,41 @@ async def query_session(session: dict, template_key: str, file_index: int | None
         "answer": answer,
         "selected_file": selected_file,
     }
+
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/api/query_session', methods=['POST'])
+async def handle_query_session():
+    # 1. Get the JSON data from the request
+    data = request.get_json()
+    
+    # 2. Extract parameters (ensure they exist or provide defaults)
+    session_data = data.get("session")
+    template_key = data.get("template_key")
+    file_index = data.get("file_index") # Can be None
+
+    if not session_data or not template_key:
+        return jsonify({"error": "Missing session or template_key"}), 400
+
+    try:
+        # 3. Await your async function
+        result = await query_session(
+            session=session_data, 
+            template_key=template_key, 
+            file_index=file_index
+        )
+        
+        # 4. Return the dictionary as JSON
+        return jsonify(result), 200
+
+    except KeyError as e:
+        return jsonify({"error": str(e)}), 404
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 async def main():
     # ... (Setup logic same as your original)
