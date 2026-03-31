@@ -185,6 +185,27 @@ async def run_query(vector_store, async_es_client, user_prompt: str):
     response = await query_engine.aquery(user_prompt)
     return response
 
+async def query_session(session: dict, template_key: str) -> dict:
+    """
+    Runs a named template query against an active session.
+    Returns a dict with 'description' and 'answer' for the frontend to display.
+    Raises KeyError if the template key is not found.
+    Raises RuntimeError if prompt templates cannot be loaded.
+    """
+    templates = load_prompt_templates()
+    if not templates:
+        raise RuntimeError(f"Could not load prompt templates from '{PROMPTS_FILE}'.")
+    if template_key not in templates:
+        raise KeyError(f"Template '{template_key}' not found. Available: {list(templates.keys())}")
+
+    selected = templates[template_key]
+    answer = await run_query(session["vector_store"], session["client"], selected["prompt"])
+
+    return {
+        "description": selected["description"],
+        "answer": answer,
+    }
+
 async def main():
     # ... (Setup logic same as your original)
     print("\n=== RAGES - Elasticsearch RAG System ===")
