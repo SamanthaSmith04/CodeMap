@@ -10,8 +10,6 @@ from llama_index.vector_stores.elasticsearch import ElasticsearchStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from github_api_calls import set_up_github_connection, get_repo_contents, get_commit_history, get_issue_history
-from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
-from llama_index.vector_stores.elasticsearch import AsyncBM25Strategy
 
 ES_URL = "http://127.0.0.1:9201"
 INDEX_PREFIX = "github_rag_index"
@@ -77,30 +75,69 @@ def index_exists(index_name: str) -> bool:
     return sync_es.indices.exists(index=index_name)
 
 async def get_indexed_files(async_es_client, index_name: str):
-    keys_to_try = [
-        ("file_name", "metadata.file_name.keyword"),
-        ("file_path", "metadata.file_path.keyword"),
-        ("file_name", "metadata.file_name"),
-    ]
+    query = {
+        "size": 1000,
+        "_source": ["metadata.file_name", "metadata.file_path"]
+    }
+    response = await async_es_client.search(index=index_name, body=query)
 
-    for logical_key, field_key in keys_to_try:
-        query = {
-            "size": 0,
-            "aggs": {
-                "unique_files": {
-                    "terms": {"field": field_key, "size": 1000}
-                }
-            }
-        }
-        try:
-            response = await async_es_client.search(index=index_name, body=query)
-            buckets = response["aggregations"]["unique_files"]["buckets"]
-            if buckets:
-                return [{"value": b["key"], "filter_key": logical_key} for b in buckets]
-        except Exception:
-            continue
+    seen = set()
+    files = []
+    for hit in response["hits"]["hits"]:
+        md = hit["_source"].get("metadata", {})
+        file_name = md.get("file_name")
+        file_path = md.get("file_path")
+        if file_name and file_path and file_path not in seen:
+            seen.add(file_path)
+            files.append({"value": file_name, "path": file_path})
 
-    return []
+    files.sort(key=lambda x: x["value"].lower())
+    return files
+
+def load_file_text(file_path: str, max_chars: int = 12000) -> str:
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        return text[:max_chars]
+    except Exception as e:
+        return f"[Could not read file: {e}]"
+    
+async def maybe_select_file(async_es_client, index_name, selected_template, current_prompt):
+    selected_file = None
+
+    if selected_template['id'] in ["C1", "C2", "C3", "D2"]:
+        files = await get_indexed_files(async_es_client, index_name)
+
+        if not files:
+            print("No files found in index.")
+            return None, None
+
+        print("\n--- Files in Index ---")
+        for f_idx, file_info in enumerate(files, 1):
+            print(f"[{f_idx}] {file_info['value']}")
+
+        f_choice = int(input("Select a file number: "))
+        chosen = files[f_choice - 1]
+
+        selected_file = chosen["value"]
+        file_path = chosen["path"]
+
+        file_text = load_file_text(file_path)
+
+        current_prompt = f"""
+            You are answering a question about this file.
+
+            FILE: {selected_file}
+
+            CONTENT:
+            ```text
+            {file_text}
+
+            QUESTION:
+            {current_prompt}
+            """.strip()
+
+        return current_prompt, selected_file
 
 def load_prompt_templates():
     if not os.path.exists(PROMPTS_FILE):
@@ -126,76 +163,27 @@ async def set_up_pipeline(repo_path: str, index_name: str):
     vector_store = ElasticsearchStore(
         index_name=index_name, 
         es_client=async_es_client,
-        retrieval_strategy=AsyncBM25Strategy(),
     )
 
     # 4. Ingestion
     pipeline = IngestionPipeline(
         transformations=[Settings.node_parser, Settings.embed_model],
-        vector_store=vector_store,
+        vector_store = ElasticsearchStore(
+            index_name=index_name,
+            es_client=async_es_client
+        ),
     )
     await pipeline.arun(documents=documents, show_progress=True)
 
     return vector_store, async_es_client
 
-async def run_query(vector_store, async_es_client, user_prompt: str, selected_file: str):
+async def run_query(vector_store, async_es_client, user_prompt: str):
     index = VectorStoreIndex.from_vector_store(vector_store)
-
-    def custom_query(es_query: dict, query: str):
-        base_query = es_query.get("query", {"match_all": {}})
-
-        es_query["query"] = {
-            "bool": {
-                "must": [base_query],  # keep LlamaIndex search
-                "filter": [
-                    {"term": {"metadata.file_name.keyword": selected_file}}
-                ]
-            }
-        }
-
-        return es_query
-    
-    query_engine = index.as_query_engine(
-        vector_store_kwargs={
-            "custom_query": custom_query
-        }
-    )
+    query_engine = index.as_query_engine()
 
     print("\n--- Generating Response via Ollama ---")
     response = await query_engine.aquery(user_prompt)
-
     return response
-
-async def debug_index_content(async_es_client, index_name):
-    res = await async_es_client.search(index=index_name, size=1)
-    if res['hits']['hits']:
-        print("Sample Metadata found:", res['hits']['hits'][0]['_source']['metadata'])
-    else:
-        print("Index is empty!")
-
-async def debug_filtered_count(async_es_client, index_name, filter_key, filter_value):
-    query = {
-        "query": {
-            "term": {f"metadata.{filter_key}": filter_value}
-        }
-    }
-    res = await async_es_client.count(index=index_name, body=query)
-    print(f"Filtered doc count for metadata.{filter_key}={filter_value}: {res['count']}")
-
-async def debug_retrieval(vector_store, user_prompt: str, filters=None):
-    index = VectorStoreIndex.from_vector_store(vector_store)
-    retriever = index.as_retriever(filters=filters, similarity_top_k=5)
-
-    nodes = await retriever.aretrieve(user_prompt)
-
-    print("\n--- Retrieved nodes directly ---")
-    print("Count:", len(nodes))
-    for i, node in enumerate(nodes, 1):
-        print(f"\n[{i}] score={getattr(node, 'score', None)}")
-        print("Metadata:", node.metadata)
-        print("Text preview:", repr(node.text[:400]))
-
-    return nodes
 
 async def main():
     # ... (Setup logic same as your original)
@@ -229,31 +217,19 @@ async def main():
                 
             try:
                 selected = templates[template_keys[int(user_input) - 1]]
-                current_prompt = selected['prompt']
-                current_filters = None
+                current_prompt = selected["prompt"]
 
-                # FILE SELECTION LOGIC
-                if selected['id'] in ["C1", "C2", "C3", "D2"]:
-                    files = await get_indexed_files(async_es_client, unique_index_name)
-                    if files:
-                        print("\n--- Files in Index ---")
-                        await debug_index_content(async_es_client, unique_index_name)
+                current_prompt, selected_file = await maybe_select_file(
+                    async_es_client,
+                    unique_index_name,
+                    selected,
+                    current_prompt
+                )
 
-                        for f_idx, file_info in enumerate(files, 1):
-                            print(f"[{f_idx}] {file_info['value']}")
+                if current_prompt is None:
+                    continue
 
-                        f_choice = int(input("Select a file number: "))
-                        selected = files[f_choice - 1]
-
-                        selected_file = selected["value"]
-
-                        current_prompt = f"Regarding the file '{selected_file}': {current_prompt}"
-
-                    else:
-                        print("No files found in index.")
-                        continue
-
-                answer = await run_query(vector_store, async_es_client, current_prompt, selected_file)
+                answer = await run_query(vector_store, async_es_client, current_prompt)
                 print(f"\n{'='*20} RESPONSE {'='*20}\n{answer}\n{'='*50}")
 
             except (ValueError, IndexError):
@@ -265,6 +241,10 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main())
     except KeyboardInterrupt:
         print("\nStopped by user.")
+    finally:
+        loop.close()
