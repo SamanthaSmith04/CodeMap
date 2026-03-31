@@ -4,14 +4,18 @@ GitHub REST API
 import requests
 import os
 
-def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN"):
+folder_location = "temp_files/"
+
+def set_up_github_connection(repo_url, token_location="GITHUBACCESSTOKEN"):
     """
     Sets up github connection
     """
     with open(token_location, "r") as f:
         token = f.read().strip()
 
-    url = f"https://api.github.com/repos/{owner}/{repo_name}"
+    repo_names = "/".join(repo_url.rstrip(".git").split("/")[-2:])
+
+    url = f"https://api.github.com/repos/{repo_names}"
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
@@ -19,7 +23,32 @@ def set_up_github_connection(owner, repo_name, token_location="GITHUBACCESSTOKEN
     }
     return headers, url
 
-def get_repo_contents(headers, url, save_path):
+def check_repo_exists(url):
+    """
+        Makes a test call to the API to validate the repo exists
+        Parameters:
+            url: The link to the starting point of the repo
+        Returns:
+            True if repo is found, false otherwise
+    """
+
+    repo_names = "/".join(url.rstrip(".git").split("/")[-2:])
+
+    url = f"https://api.github.com/repos/{repo_names}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    response = requests.get(url, headers=headers)
+
+    response.raise_for_status()
+    if response.status_code != 200:
+        print(f"Failed to send request")
+        print(f"Message: {response.json()['message']}")
+        return false;
+    return true;
+
+def get_repo_contents(headers, url):
     """
     Downloads the repo contents to files under the dynamic save_path.
     """
