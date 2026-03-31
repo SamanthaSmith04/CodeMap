@@ -21,21 +21,30 @@ Settings.llm = Ollama(model="llama3.1", request_timeout=360.0)
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
-def download_github_repo(owner: str, repo: str, temp_dir: str) -> str:
+def download_github_repo(repo_url:str) -> str:
     """
-    Download a GitHub repository into a specific unique directory.
+    Download a GitHub repository and save files locally using GitHub API calls.
+    
+    Args:
+        repo_url: The url to the repository
+        
+    Returns:
+        Path to the local directory containing downloaded files
     """
-    print(f"Downloading GitHub repository: {owner}/{repo} into {temp_dir}")
+    print(f"Downloading GitHub repository: {repo_url}")
     
     try:
         os.makedirs(temp_dir, exist_ok=True)
         
         # Set up GitHub connection
-        headers, url = set_up_github_connection(owner, repo)
-        get_repo_contents(headers, url, save_path=temp_dir) 
-        get_commit_history(headers, url, save_path=temp_dir)
-        get_issue_history(headers, url, save_path=temp_dir)
-
+        headers, url = set_up_github_connection(repo_url)
+        
+        # Download repository contents
+        get_repo_contents(headers, url)
+        
+        # Return the temp directory path where files are saved
+        temp_dir = "temp_files"
+        print(f"Repository downloaded to: {temp_dir}")
         return temp_dir
         
     except Exception as e:
@@ -133,18 +142,15 @@ async def main():
     repo_path = None
     is_resume = False
 
-    if choice == "3":
-        session_id = input("Enter your Session ID (e.g., a1b2c3d4): ").strip()
-        unique_index_name = f"{INDEX_PREFIX}_{session_id}"
+
+    elif choice == "2":
+        # GitHub repository
         
-        if index_exists(unique_index_name):
-            print(f"✔ Found existing index: {unique_index_name}. Resuming...")
-            is_resume = True
-            # Create the client and store directly
-            async_es_client = AsyncElasticsearch(ES_URL)
-            vector_store = ElasticsearchStore(index_name=unique_index_name, es_client=async_es_client)
-        else:
-            print(f"✗ Session ID '{session_id}' not found in Elasticsearch.")
+        url = input("Enter GitHub repository url: ").strip()
+        try:
+            repo_path = download_github_repo(url)
+        except Exception as e:
+            print(f"✗ Failed to download repository: {e}")
             return
     else:
         session_id = uuid.uuid4().hex[:8]
