@@ -37,14 +37,11 @@ def download_github_repo(repo_url:str) -> str:
         os.makedirs(temp_dir, exist_ok=True)
         
         # Set up GitHub connection
-        headers, url = set_up_github_connection(repo_url)
-        
-        # Download repository contents
-        get_repo_contents(headers, url)
-        
-        # Return the temp directory path where files are saved
-        temp_dir = "temp_files"
-        print(f"Repository downloaded to: {temp_dir}")
+        headers, url = set_up_github_connection(owner, repo)
+        get_repo_contents(headers, url, save_path=temp_dir) 
+        # get_commit_history(headers, url, save_path=temp_dir)
+        # get_issue_history(headers, url, save_path=temp_dir)
+
         return temp_dir
         
     except Exception as e:

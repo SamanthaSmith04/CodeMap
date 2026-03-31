@@ -60,8 +60,8 @@ def get_repo_contents(headers, url):
     os.makedirs(save_path, exist_ok=True)
 
     # Save the raw repo metadata
-    with open(os.path.join(save_path, 'code.txt'), 'w', encoding='utf-8') as f:
-        f.write(str(data) + '\n')
+    # with open(os.path.join(save_path, 'code.txt'), 'w', encoding='utf-8') as f:
+    #     f.write(str(data) + '\n')
         
     contents_url = data['contents_url'].replace('{+path}', '')
     
