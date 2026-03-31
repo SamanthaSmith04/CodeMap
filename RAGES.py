@@ -138,6 +138,37 @@ async def maybe_select_file(async_es_client, index_name, selected_template, curr
             """.strip()
 
         return current_prompt, selected_file
+    
+async def apply_file_to_prompt(async_es_client, index_name, selected_template, current_prompt, file_index=None):
+    selected_file = None
+
+    if selected_template["id"] in ["C1", "C2", "C3", "D2"]:
+        files = await get_indexed_files(async_es_client, index_name)
+        if not files:
+            raise RuntimeError("No files found in index.")
+
+        if file_index is None:
+            raise ValueError("This template requires a file selection.")
+
+        chosen = files[file_index]
+        selected_file = chosen["value"]
+        file_path = chosen["path"]
+        file_text = load_file_text(file_path)
+
+        current_prompt = f"""
+            You are answering a question about this file.
+
+            FILE: {selected_file}
+
+            CONTENT:
+            ```text
+            {file_text}
+
+            QUESTION:
+            {current_prompt}
+            """.strip()
+
+        return current_prompt, selected_file
 
 def load_prompt_templates():
     if not os.path.exists(PROMPTS_FILE):
@@ -185,7 +216,7 @@ async def run_query(vector_store, async_es_client, user_prompt: str):
     response = await query_engine.aquery(user_prompt)
     return response
 
-async def query_session(session: dict, template_key: str) -> dict:
+async def query_session(session: dict, template_key: str, file_index: int | None = None) -> dict:
     """
     Runs a named template query against an active session.
     Returns a dict with 'description' and 'answer' for the frontend to display.
@@ -199,11 +230,22 @@ async def query_session(session: dict, template_key: str) -> dict:
         raise KeyError(f"Template '{template_key}' not found. Available: {list(templates.keys())}")
 
     selected = templates[template_key]
-    answer = await run_query(session["vector_store"], session["client"], selected["prompt"])
+    current_prompt = selected["prompt"]
+
+    current_prompt, selected_file = await apply_file_to_prompt(
+        session["client"],
+        session["index_name"],
+        selected,
+        current_prompt,
+        file_index=file_index,
+    )
+
+    answer = await run_query(session["vector_store"], session["client"], current_prompt)
 
     return {
         "description": selected["description"],
         "answer": answer,
+        "selected_file": selected_file,
     }
 
 async def main():
