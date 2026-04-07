@@ -78,19 +78,30 @@
       <button id="run-btn-repo" disabled>Run</button>
     </div>
   </div>
-
-  <script src="script.js"></script> 
-
     
   <!-- Page 3: Continuing on after selecting a prompt-->
-  <div class="container hidden" id="page-results">
-    <h1>CodeMap</h1>
+  <div id="page-results" class="container hidden">
     <div class="upload-box">
       <h2 id="selected-prompt-title" style="margin-bottom: 1.5rem; color: #1f2937;"></h2>
+      <!-- File dropdown -->
+      <div id="file-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
+        <label for="file-select">Choose a file:</label>
+        <select id="file-select"></select>
+      </div>
+      <!-- Function dropdown (optional UI) -->
+      <div id="function-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
+        <label for="function-select">Choose a function:</label>
+        <select id="function-select"></select>
+      </div>
+      <!-- Run query button -->
+      <button id="run-query-btn" style="margin-bottom: 1rem;">
+        Run Query
+      </button>
+      <!-- Results -->
       <div id="results-content"></div>
       <button id="backButton3">← Back</button>
     </div>
   </div>
+  <script src="script.js"></script> 
 </body> 
-
 </html>
