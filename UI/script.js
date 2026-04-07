@@ -15,69 +15,245 @@ const PROMPTS = [
   { id: "E2", key: "list-functions",          desc: "List all functions per file (JSON)" },
 ];
 
-function showPage(id) {
-  document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-}
-
 let selectedPrompt = null;
+let currentSessionId = null;
+let indexedFiles = [];   // [{ value, path }]
+let indexedFileNames = [];
+let functionsByFile = {};  // optional/dummy frontend map
+
+function showPage(id) {
+  document.querySelectorAll(".container").forEach(el => el.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
 
 function buildPromptList(containerId, runBtnId) {
   const container = document.getElementById(containerId);
-  const runBtn    = document.getElementById(runBtnId);
-  container.innerHTML = '';
+  const runBtn = document.getElementById(runBtnId);
+  container.innerHTML = "";
 
   PROMPTS.forEach(item => {
-    const btn = document.createElement('button');
-    btn.className = 'prompt-option';
-    btn.innerHTML = `<span class="prompt-id"></span> ${item.desc}`;
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.prompt-option').forEach(o => o.classList.remove('selected'));
-      btn.classList.add('selected');
+    const btn = document.createElement("button");
+    btn.className = "prompt-option";
+    btn.textContent = item.desc;
+
+    btn.addEventListener("click", () => {
+      container.querySelectorAll(".prompt-option").forEach(o => o.classList.remove("selected"));
+      btn.classList.add("selected");
       selectedPrompt = item;
       runBtn.disabled = false;
     });
+
     container.appendChild(btn);
   });
 }
 
-document.getElementById("backButton").addEventListener("click", () => showPage('homepage'));
-document.getElementById("uploadButton").addEventListener("click", () => {
+function populateSelect(selectEl, items, placeholder) {
+  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+  items.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item;
+    opt.textContent = item;
+    selectEl.appendChild(opt);
+  });
+}
 
-  const fileInput = document.getElementById("fileInput");
-  const status = document.getElementById("status");
+function promptNeedsFile(promptId) {
+  return ["C1", "C2", "C3", "D2"].includes(promptId);
+}
 
-  //Case 1: File uploaded
-  if (fileInput.files.length > 0) {
+function buildDummyFunctionMap() {
+  // Optional frontend-only helper logic.
+  // Since backend only supports file_index right now, this is mainly for UI.
+  functionsByFile = {};
+  indexedFileNames.forEach(name => {
+    functionsByFile[name] = [];
+  });
+}
 
-    // Populate file list on page 2
-    const filesList = document.getElementById("files-list");
-    filesList.innerHTML = Array.from(fileInput.files)
-      .map(f => `<p>${f.webkitRelativePath || f.name}</p>`)
-      .join('');
+function setupPage3Dropdowns(prompt) {
+  const fileSection = document.getElementById("file-dropdown-section");
+  const functionSection = document.getElementById("function-dropdown-section");
+  const fileSelect = document.getElementById("file-select");
+  const functionSelect = document.getElementById("function-select");
 
-    buildPromptList('prompt-select-files', 'run-btn-files');
+  if (!fileSection || !functionSection || !fileSelect || !functionSelect) return;
 
-    showPage('page-files');
+  fileSection.classList.add("hidden");
+  functionSection.classList.add("hidden");
+  fileSelect.innerHTML = "";
+  functionSelect.innerHTML = "";
+  functionSelect.disabled = true;
+
+  if (!promptNeedsFile(prompt.id)) {
     return;
-
   }
 
-  //Case 2: Nothing selected
-  status.textContent = "Please upload a file or folder first.";
+  populateSelect(fileSelect, indexedFileNames, "-- Choose a file --");
+  fileSection.classList.remove("hidden");
 
-});
+  // Keep this lightweight. Python does not actually accept function_index yet.
+  if (prompt.id === "C3") {
+    populateSelect(functionSelect, [], "-- Choose a file first --");
+    functionSection.classList.remove("hidden");
 
-document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
-document.getElementById("loadRepoButton").addEventListener("click", async () => {
+    fileSelect.onchange = () => {
+      const selectedFile = fileSelect.value;
+      const functions = functionsByFile[selectedFile] || [];
+      populateSelect(functionSelect, functions, functions.length ? "-- Choose a function --" : "-- No functions available --");
+      functionSelect.disabled = functions.length === 0;
+    };
+  } else {
+    fileSelect.onchange = null;
+    functionSelect.onchange = null;
+  }
+}
 
-  const repoURL = document.getElementById("repoURL").value.trim();
-  const status = document.getElementById("status");
+function renderResult(data) {
+  const results = document.getElementById("results-content");
 
-  //Case 1: Repo URL entered
-  if (repoURL) {
+  const selectedFileHtml = data.selected_file
+    ? `<p><strong>Selected file:</strong> ${data.selected_file}</p>`
+    : "";
 
-    const cleanURL = repoURL.replace(/\.git$/, '').replace(/\/$/, '');
+  results.innerHTML = `
+    ${selectedFileHtml}
+    <div class="result-block">
+      <h3>${data.description || "Result"}</h3>
+      <pre style="white-space: pre-wrap;">${data.answer || ""}</pre>
+    </div>
+  `;
+}
+
+function renderError(message) {
+  document.getElementById("results-content").innerHTML = `
+    <p style="color: red;"><strong>Error:</strong> ${message}</p>
+  `;
+}
+
+async function startRepoSession(owner, repo) {
+  const response = await fetch("/api/start_repo_session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner, repo })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to start repo session");
+  }
+
+  currentSessionId = data.session_id;
+  indexedFiles = data.files || [];
+  indexedFileNames = indexedFiles.map(f => f.value);
+  buildDummyFunctionMap();
+
+  return data;
+}
+
+async function runSelectedPrompt() {
+  if (!selectedPrompt) {
+    renderError("No prompt selected.");
+    return;
+  }
+
+  if (!currentSessionId) {
+    renderError("No active session. Load a repository first.");
+    return;
+  }
+
+  const fileSelect = document.getElementById("file-select");
+  const needsFile = promptNeedsFile(selectedPrompt.id);
+
+  let fileIndex = null;
+
+  if (needsFile) {
+    const selectedFileName = fileSelect.value;
+    if (!selectedFileName) {
+      renderError("Please choose a file first.");
+      return;
+    }
+
+    fileIndex = indexedFiles.findIndex(f => f.value === selectedFileName);
+    if (fileIndex < 0) {
+      renderError("Invalid file selection.");
+      return;
+    }
+  }
+
+  document.getElementById("results-content").innerHTML = `<p>Running query...</p>`;
+
+  try {
+    const response = await fetch("/api/query_session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: currentSessionId,
+        template_key: selectedPrompt.key,
+        file_index: fileIndex
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Query failed");
+    }
+
+    renderResult(data);
+  } catch (err) {
+    renderError(err.message);
+  }
+}
+
+function goToPage3(prevPage) {
+  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
+  document.getElementById("backButton3").dataset.prev = prevPage;
+  document.getElementById("results-content").innerHTML = "";
+  setupPage3Dropdowns(selectedPrompt);
+  showPage("page-results");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("backButton").addEventListener("click", () => showPage("homepage"));
+  document.getElementById("backButton2").addEventListener("click", () => showPage("homepage"));
+
+  document.getElementById("uploadButton").addEventListener("click", () => {
+    const fileInput = document.getElementById("fileInput");
+    const status = document.getElementById("status");
+
+    if (fileInput.files.length > 0) {
+      const filesList = document.getElementById("files-list");
+      filesList.innerHTML = Array.from(fileInput.files)
+        .map(f => `<p>${f.webkitRelativePath || f.name}</p>`)
+        .join("");
+
+      // Dummy only for now unless you add a Flask upload endpoint
+      indexedFiles = Array.from(fileInput.files).map(f => ({
+        value: f.webkitRelativePath || f.name,
+        path: f.webkitRelativePath || f.name
+      }));
+      indexedFileNames = indexedFiles.map(f => f.value);
+      buildDummyFunctionMap();
+
+      buildPromptList("prompt-select-files", "run-btn-files");
+      showPage("page-files");
+      return;
+    }
+
+    status.textContent = "Please upload a file or folder first.";
+  });
+
+  document.getElementById("loadRepoButton").addEventListener("click", async () => {
+    const repoURL = document.getElementById("repoURL").value.trim();
+    const status = document.getElementById("status");
+
+    if (!repoURL) {
+      status.textContent = "Please upload a file OR paste a GitHub repo URL.";
+      return;
+    }
+
+    const cleanURL = repoURL.replace(/\.git$/, "").replace(/\/$/, "");
     const match = cleanURL.match(/github\.com\/([^\/]+)\/([^\/]+)/);
 
     if (!match) {
@@ -89,187 +265,31 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
     const repo = match[2];
 
     try {
+      status.textContent = "Loading repository...";
+      await startRepoSession(owner, repo);
 
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-
-      if (response.ok) {
-        document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
-        buildPromptList('prompt-select-repo', 'run-btn-repo');
-        showPage('page-repo');
-      } else {
-        status.textContent = "Repository not found.";
-      }
-
+      document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
+      buildPromptList("prompt-select-repo", "run-btn-repo");
+      status.textContent = "";
+      showPage("page-repo");
     } catch (error) {
-      status.textContent = "Error checking repository.";
+      status.textContent = error.message || "Error loading repository.";
     }
-
-    return;
-  }
-
-  //Case 2: Nothing entered
-  status.textContent = "Please upload a file OR paste a GitHub repo URL.";
-
-});
-
-//Adding things from here and below for page three where the results are posted 
-//and the dropdown for file and function
-
-// =============================================================================
-// TODO: REPLACE BELOW WITH ELASTICSEARCH DATA
-// =============================================================================
- 
-// List of all file names in the repo
-const esFiles = ["index.js", "app.py", "style.css"];
- 
-// Map of file name → array of function names inside that file
-const esFunctionsByFile = {
-  "index.js":   ["handleClick", "renderApp", "fetchData"],
-  "app.py":     ["main", "process_input", "connect_db"],
-  "style.css":  []
-};
- 
-// Flat list of every function across all files (auto-derived — do not edit)
-const esAllFunctions = [...new Set(Object.values(esFunctionsByFile).flat())];
- 
-// =============================================================================
- 
-function populateSelect(selectEl, items, placeholder) {
-  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
-  items.forEach(item => {
-    const opt = document.createElement("option");
-    opt.value = item;
-    opt.textContent = item;
-    selectEl.appendChild(opt);
   });
-}
- 
-function setupPage3Dropdowns(prompt) {
-  const fileSection     = document.getElementById("file-dropdown-section");
-  const functionSection = document.getElementById("function-dropdown-section");
-  const fileSelect      = document.getElementById("file-select");
-  const functionSelect  = document.getElementById("function-select");
- 
-  if (!fileSection || !functionSection) return;
 
-  // Hide both to start
-  fileSection.classList.add("hidden");
-  functionSection.classList.add("hidden");
-  functionSelect.disabled = true;
-  
-  switch(prompt.id) {
-
-    case "A1":
-        //Call func
-      break;
-      
-    case "A2":
-        //Call func
-      break;
-
-    case "A3":
-        //Call func
-      break;
-    
-    case "B1":
-        //Call func
-      break; 
-
-    case "B2":
-        //Call func
-      break;
-
-    case "B3":
-        //Call func
-      break;
-
-    case "B4":
-        //Call func
-      break;
-
-    case "C1":
-     // File dropdown only
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      fileSection.classList.remove("hidden");
-      break;
-
-    case "C2":
-      // Function dropdown only (not dependent on a file)
-      populateSelect(functionSelect, esAllFunctions, "-- Choose a function --");
-      functionSelect.disabled = false;
-      functionSection.classList.remove("hidden");
-      break;
-      
-    case "C3":
-        // File first, then function dropdown populates based on selection
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      populateSelect(functionSelect, [], "-- Select a file first --");
-      fileSection.classList.remove("hidden");
-      functionSection.classList.remove("hidden");
- 
-      fileSelect.addEventListener("change", () => {
-        const selectedFile = fileSelect.value;
-        if (selectedFile && esFunctionsByFile[selectedFile]) {
-          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-          functionSelect.disabled = false;
-        } else {
-          populateSelect(functionSelect, [], "-- Select a file first --");
-          functionSelect.disabled = true;
-        }
-      });
-      break;
-
-    case "D1":
-        //Call func
-      break; 
-    
-    case "D2":
-        // File first, then function dropdown populates based on selection
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      populateSelect(functionSelect, [], "-- Select a file first --");
-      fileSection.classList.remove("hidden");
-      functionSection.classList.remove("hidden");
- 
-      fileSelect.addEventListener("change", () => {
-        const selectedFile = fileSelect.value;
-        if (selectedFile && esFunctionsByFile[selectedFile]) {
-          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-          functionSelect.disabled = false;
-        } else {
-          populateSelect(functionSelect, [], "-- Select a file first --");
-          functionSelect.disabled = true;
-        }
-      });
-      break;
-
-    case "E1":
-        //Call func
-      break; 
-
-    case "E2":
-        //Call func
-      break; 
-
-  }
-}
- 
-function goToPage3(prevPage) {
-  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
-  document.getElementById("backButton3").dataset.prev = prevPage;
-  setupPage3Dropdowns(selectedPrompt);
-  showPage("page-results");
-}
-document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("run-btn-files").addEventListener("click", () => {
     goToPage3("page-files");
   });
- 
+
   document.getElementById("run-btn-repo").addEventListener("click", () => {
     goToPage3("page-repo");
   });
- 
+
+  document.getElementById("run-query-btn").addEventListener("click", async () => {
+    await runSelectedPrompt();
+  });
+
   document.getElementById("backButton3").addEventListener("click", () => {
     showPage(document.getElementById("backButton3").dataset.prev || "homepage");
   });
 });
-
