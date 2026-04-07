@@ -286,6 +286,35 @@ async def handle_query_session():
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred"}), 500
 
+@app.route('/api/repo_exists', methods=['POST'])
+async def check_repo_exists():
+    data = request.get_json()
+    
+    repo_url = data.get("url")
+    if not repo_url:
+        return jsonify({"error": "Missing repo URL"}), 400
+
+    try:
+        repo_names = "/".join(repo_url.rstrip(".git").split("/")[-2:])
+        github_url = f"https://api.github.com/repos/{repo_names}"
+
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        response = requests.get(github_url, headers=headers)
+
+        if response.status_code == 200:
+            return jsonify({"exists": True}), 200
+        elif response.status_code == 404:
+            return jsonify({"exists": False}), 404
+        else:
+            return jsonify({"error": response.json().get("message", "Unknown error")}), 500
+
+    except Exception as e:
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
 async def main():
     # ... (Setup logic same as your original)
     print("\n=== RAGES - Elasticsearch RAG System ===")
