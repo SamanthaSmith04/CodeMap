@@ -68,6 +68,33 @@ document.getElementById("uploadButton").addEventListener("click", () => {
 
 });
 
+
+//
+async function checkRepoExists(repoUrl) {
+  try {
+      const response = await fetch('/api/repo_exists', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: repoUrl })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+          console.log("Exists:", data.exists);
+      } else {
+          console.error("Error:", data.error);
+      }
+
+      return data;
+  } catch (err) {
+      console.error("Request failed:", err);
+  }
+}
+
+//
 document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
 document.getElementById("loadRepoButton").addEventListener("click", async () => {
 
@@ -75,19 +102,27 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
   const status = document.getElementById("status");
 
   //Case 1: Repo URL entered
-  if (repoURL) {
+  //if (repoURL) {
 
     const cleanURL = repoURL.replace(/\.git$/, '').replace(/\/$/, '');
     const match = cleanURL.match(/github\.com\/([^\/]+)\/([^\/]+)/);
 
-    if (!match) {
-      status.textContent = "Invalid GitHub URL.";
-      return;
-    }
-
     const owner = match[1];
     const repo = match[2];
-
+  try{
+    if (checkRepoExists(repoURL)) {
+      document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
+      buildPromptList('prompt-select-repo', 'run-btn-repo');
+      showPage('page-repo'); 
+    } else {
+      status.textContent = "Invalid GitHub URL.";
+    }
+  }catch (error) {
+    console.error(error);
+    status.textContent = "Error checking repository.";
+  }
+  });
+/* 
     try {
 
       const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
@@ -109,8 +144,8 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
 
   //Case 2: Nothing entered
   status.textContent = "Please upload a file OR paste a GitHub repo URL.";
+*/
 
-});
 
 //Adding things from here and below for page three where the results are posted 
 //and the dropdown for file and function
@@ -156,11 +191,13 @@ function setupPage3Dropdowns(prompt) {
   fileSection.classList.add("hidden");
   functionSection.classList.add("hidden");
   functionSelect.disabled = true;
+
   
   switch(prompt.id) {
 
     case "A1":
-        //Call func
+        query_session(null, "A1");
+
       break;
       
     case "A2":
