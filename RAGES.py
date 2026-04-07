@@ -286,6 +286,34 @@ async def handle_query_session():
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred"}), 500
 
+@app.route('api/download_github_repo', methods=['POST'])
+async def handle_download_github_repo():
+    data = request.get_json()
+
+    repo_owner = data.get("repo_owner")
+    repo_name = data.get("repo_name")
+    temp_dir = data.get("temp_dir")
+
+    if not repo_owner:
+        return jsonify({"error": "Missing repo owner"})
+    if not repo_name:
+        return jsonify({"error": "Missing repo name"})
+    if not temp_dir:
+        reutrn jsonify({"error": "Missing save location"})
+
+    try:
+        result = await download_github_repo(repo_owner, repo_name, temp_dir)
+
+        return jsonify(result), 200
+    
+    except KeyError as e:
+        return jsonify({"error": str(e)}), 404
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+
 @app.route('/api/repo_exists', methods=['POST'])
 async def check_repo_exists():
     data = request.get_json()
