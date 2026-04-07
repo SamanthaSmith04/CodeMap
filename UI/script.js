@@ -69,7 +69,7 @@ document.getElementById("uploadButton").addEventListener("click", () => {
 });
 
 
-//
+//Checks if repo exists
 async function checkRepoExists(repoUrl) {
   try {
       const response = await fetch('/api/repo_exists', {
@@ -94,7 +94,7 @@ async function checkRepoExists(repoUrl) {
   }
 }
 
-
+//Pulls down all the files from the github
 async function downloadGithubRepo(repoOwner, repoName, tempDir) {
   try {
       const response = await fetch('/api/download_github_repo', {
@@ -123,6 +123,7 @@ async function downloadGithubRepo(repoOwner, repoName, tempDir) {
   }
 }
 
+//Gets the tempt directory
 function getSessionPath(choice, userInputSessionId = "") {
   // Generate random session ID (8 hex chars)
   const randomId = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
@@ -158,6 +159,8 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
       document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
       buildPromptList('prompt-select-repo', 'run-btn-repo');
       showPage('page-repo'); 
+      //Pulls the files from the github repo to a temp file for us to use to run
+      downloadGithubRepo(owner, repo, tempDir);
     } else {
       status.textContent = "Invalid GitHub URL.";
     }
@@ -165,7 +168,10 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
     console.error(error);
     status.textContent = "Error checking repository.";
   }
+
   });
+
+
 /* 
     try {
 
