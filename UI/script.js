@@ -94,6 +94,34 @@ async function checkRepoExists(repoUrl) {
   }
 }
 
+
+async function downloadGithubRepo(repoOwner, repoName, tempDir) {
+  try {
+      const response = await fetch('/api/download_github_repo', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+              repo_owner: repoOwner,
+              repo_name: repoName,
+              temp_dir: tempDir
+          })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+          console.log("Download success:", data);
+      } else {
+          console.error("Error:", data.error);
+      }
+
+      return data;
+  } catch (err) {
+      console.error("Request failed:", err);
+  }
+}
 //
 document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
 document.getElementById("loadRepoButton").addEventListener("click", async () => {
