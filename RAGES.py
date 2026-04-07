@@ -299,7 +299,7 @@ async def handle_download_github_repo():
     if not repo_name:
         return jsonify({"error": "Missing repo name"})
     if not temp_dir:
-        reutrn jsonify({"error": "Missing save location"})
+        return jsonify({"error": "Missing save location"})
 
     try:
         result = await download_github_repo(repo_owner, repo_name, temp_dir)
