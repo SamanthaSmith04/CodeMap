@@ -18,6 +18,7 @@ ES_URL = "http://127.0.0.1:9201"
 INDEX_PREFIX = "github_rag_index"
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 PROMPTS_FILE = "CodeMap-prompts/prompt_templates.json"
+SESSIONS = {}
 
 Settings.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME)
 Settings.llm = Ollama(model="llama3.1", request_timeout=360.0)
@@ -96,6 +97,16 @@ async def get_indexed_files(async_es_client, index_name: str):
 
     files.sort(key=lambda x: x["value"].lower())
     return files
+
+@app.route('/api/indexed_files', methods=['GET'])
+async def indexed_files():
+    session_id = request.args.get("session_id")
+    if not session_id or session_id not in SESSIONS:
+        return jsonify({"error": "Invalid or missing session_id"}), 400
+
+    session = SESSIONS[session_id]
+    files = await get_indexed_files(session["client"], session["index_name"])
+    return jsonify({"files": files}), 200
 
 def load_file_text(file_path: str, max_chars: int = 12000) -> str:
     try:
@@ -220,12 +231,6 @@ async def run_query(vector_store, async_es_client, user_prompt: str):
     return response
 
 async def query_session(session: dict, template_key: str, file_index: int | None = None) -> dict:
-    """
-    Runs a named template query against an active session.
-    Returns a dict with 'description' and 'answer' for the frontend to display.
-    Raises KeyError if the template key is not found.
-    Raises RuntimeError if prompt templates cannot be loaded.
-    """
     templates = load_prompt_templates()
     if not templates:
         raise RuntimeError(f"Could not load prompt templates from '{PROMPTS_FILE}'.")
@@ -234,14 +239,16 @@ async def query_session(session: dict, template_key: str, file_index: int | None
 
     selected = templates[template_key]
     current_prompt = selected["prompt"]
+    selected_file = None
 
-    current_prompt, selected_file = await apply_file_to_prompt(
-        session["client"],
-        session["index_name"],
-        selected,
-        current_prompt,
-        file_index=file_index,
-    )
+    if selected["id"] in ["C1", "C2", "C3", "D2"]:
+        current_prompt, selected_file = await apply_file_to_prompt(
+            session["client"],
+            session["index_name"],
+            selected,
+            current_prompt,
+            file_index=file_index,
+        )
 
     answer = await run_query(session["vector_store"], session["client"], current_prompt)
 
@@ -251,40 +258,79 @@ async def query_session(session: dict, template_key: str, file_index: int | None
         "selected_file": selected_file,
     }
 
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
 @app.route('/api/query_session', methods=['POST'])
 async def handle_query_session():
-    # 1. Get the JSON data from the request
     data = request.get_json()
-    
-    # 2. Extract parameters (ensure they exist or provide defaults)
-    session_data = data.get("session")
-    template_key = data.get("template_key")
-    file_index = data.get("file_index") # Can be None
 
-    if not session_data or not template_key:
-        return jsonify({"error": "Missing session or template_key"}), 400
+    session_id = data.get("session_id")
+    template_key = data.get("template_key")
+    file_index = data.get("file_index")
+
+    if not session_id or not template_key:
+        return jsonify({"error": "Missing session_id or template_key"}), 400
+
+    if session_id not in SESSIONS:
+        return jsonify({"error": "Invalid session_id"}), 404
 
     try:
-        # 3. Await your async function
         result = await query_session(
-            session=session_data, 
-            template_key=template_key, 
+            session=SESSIONS[session_id],
+            template_key=template_key,
             file_index=file_index
         )
-        
-        # 4. Return the dictionary as JSON
-        return jsonify(result), 200
+
+        return jsonify({
+            "description": result["description"],
+            "answer": str(result["answer"]),
+            "selected_file": result.get("selected_file")
+        }), 200
 
     except KeyError as e:
         return jsonify({"error": str(e)}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 500
     except Exception as e:
-        return jsonify({"error": "An unexpected error occurred"}), 500
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/start_repo_session', methods=['POST'])
+async def start_repo_session():
+    data = request.get_json()
+    owner = data.get("owner")
+    repo = data.get("repo")
+
+    if not owner or not repo:
+        return jsonify({"error": "Missing owner or repo"}), 400
+
+    try:
+        session_id = uuid.uuid4().hex[:8]
+        unique_index_name = f"{INDEX_PREFIX}_{session_id}"
+
+        repo_path = download_github_repo(
+            owner,
+            repo,
+            os.path.join(os.getcwd(), f"repo_{session_id}")
+        )
+
+        vector_store, async_es_client = await set_up_pipeline(repo_path, unique_index_name)
+
+        SESSIONS[session_id] = {
+            "session_id": session_id,
+            "index_name": unique_index_name,
+            "vector_store": vector_store,
+            "client": async_es_client,
+        }
+
+        files = await get_indexed_files(async_es_client, unique_index_name)
+
+        return jsonify({
+            "session_id": session_id,
+            "files": files
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 async def main():
     # ... (Setup logic same as your original)
