@@ -124,7 +124,7 @@ async function downloadGithubRepo(repoOwner, repoName, tempDir) {
 }
 
 //Gets the tempt directory
-function getSessionPath(choice, userInputSessionId = "") {
+function getSessionPath(choice = "", userInputSessionId = "") {
   // Generate random session ID (8 hex chars)
   const randomId = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
 
@@ -160,6 +160,7 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
       buildPromptList('prompt-select-repo', 'run-btn-repo');
       showPage('page-repo'); 
       //Pulls the files from the github repo to a temp file for us to use to run
+      tempDir = getSessionPath()
       downloadGithubRepo(owner, repo, tempDir);
     } else {
       status.textContent = "Invalid GitHub URL.";
