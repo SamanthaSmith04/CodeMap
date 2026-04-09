@@ -72,7 +72,7 @@ document.getElementById("uploadButton").addEventListener("click", () => {
 //Checks if repo exists
 async function checkRepoExists(repoUrl) {
   try {
-      const response = await fetch('/api/repo_exists', {
+      const response = await fetch('http://127.0.0.1:5000/api/repo_exists', {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
@@ -87,8 +87,8 @@ async function checkRepoExists(repoUrl) {
       } else {
           console.error("Error:", data.error);
       }
-
-      return data;
+      console.log("Data received:", data);
+      return data.exists;
   } catch (err) {
       console.error("Request failed:", err);
   }
@@ -97,7 +97,7 @@ async function checkRepoExists(repoUrl) {
 //Pulls down all the files from the github
 async function downloadGithubRepo(repoOwner, repoName, tempDir) {
   try {
-      const response = await fetch('/api/download_github_repo', {
+      const response = await fetch('http://127.0.0.1:5000/api/download_github_repo', {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
@@ -157,7 +157,7 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
     const owner = match[1];
     const repo = match[2];
   try{
-    if (checkRepoExists(repoURL)) {
+    if (await checkRepoExists(repoURL)) {
       document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
       buildPromptList('prompt-select-repo', 'run-btn-repo');
       showPage('page-repo'); 
