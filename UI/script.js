@@ -74,37 +74,20 @@ function setupPage3Dropdowns(prompt) {
   const fileSection = document.getElementById("file-dropdown-section");
   const functionSection = document.getElementById("function-dropdown-section");
   const fileSelect = document.getElementById("file-select");
-  const functionSelect = document.getElementById("function-select");
-
-  if (!fileSection || !functionSection || !fileSelect || !functionSelect) return;
 
   fileSection.classList.add("hidden");
   functionSection.classList.add("hidden");
   fileSelect.innerHTML = "";
-  functionSelect.innerHTML = "";
-  functionSelect.disabled = true;
 
-  if (!promptNeedsFile(prompt.id)) {
-    return;
-  }
-
-  populateSelect(fileSelect, indexedFileNames, "-- Choose a file --");
-  fileSection.classList.remove("hidden");
-
-  // Keep this lightweight. Python does not actually accept function_index yet.
-  if (prompt.id === "C3") {
-    populateSelect(functionSelect, [], "-- Choose a file first --");
-    functionSection.classList.remove("hidden");
-
-    fileSelect.onchange = () => {
-      const selectedFile = fileSelect.value;
-      const functions = functionsByFile[selectedFile] || [];
-      populateSelect(functionSelect, functions, functions.length ? "-- Choose a function --" : "-- No functions available --");
-      functionSelect.disabled = functions.length === 0;
-    };
-  } else {
-    fileSelect.onchange = null;
-    functionSelect.onchange = null;
+  if (["C1", "C2", "C3", "D2"].includes(prompt.id)) {
+    fileSelect.innerHTML = `<option value="">-- Choose a file --</option>`;
+    indexedFiles.forEach((file, idx) => {
+      const opt = document.createElement("option");
+      opt.value = idx;
+      opt.textContent = file.value;
+      fileSelect.appendChild(opt);
+    });
+    fileSection.classList.remove("hidden");
   }
 }
 
@@ -140,14 +123,13 @@ async function startRepoSession(owner, repo) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "Failed to start repo session");
+    throw new Error(data.error || "Failed to start repository session");
   }
 
   currentSessionId = data.session_id;
   indexedFiles = data.files || [];
-  indexedFileNames = indexedFiles.map(f => f.value);
-  buildDummyFunctionMap();
 
+  console.log("currentSessionId =", currentSessionId);
   return data;
 }
 
@@ -162,26 +144,16 @@ async function runSelectedPrompt() {
     return;
   }
 
-  const fileSelect = document.getElementById("file-select");
-  const needsFile = promptNeedsFile(selectedPrompt.id);
-
   let fileIndex = null;
+  const fileSelect = document.getElementById("file-select");
 
-  if (needsFile) {
-    const selectedFileName = fileSelect.value;
-    if (!selectedFileName) {
+  if (["C1", "C2", "C3", "D2"].includes(selectedPrompt.id)) {
+    if (!fileSelect || fileSelect.value === "") {
       renderError("Please choose a file first.");
       return;
     }
-
-    fileIndex = indexedFiles.findIndex(f => f.value === selectedFileName);
-    if (fileIndex < 0) {
-      renderError("Invalid file selection.");
-      return;
-    }
+    fileIndex = Number(fileSelect.value);
   }
-
-  document.getElementById("results-content").innerHTML = `<p>Running query...</p>`;
 
   try {
     const response = await fetch("/api/query_session", {
@@ -200,7 +172,11 @@ async function runSelectedPrompt() {
       throw new Error(data.error || "Query failed");
     }
 
-    renderResult(data);
+    document.getElementById("results-content").innerHTML = `
+      <h3>${data.description || "Result"}</h3>
+      ${data.selected_file ? `<p><strong>Selected file:</strong> ${data.selected_file}</p>` : ""}
+      <pre style="white-space: pre-wrap;">${data.answer || ""}</pre>
+    `;
   } catch (err) {
     renderError(err.message);
   }
@@ -249,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const status = document.getElementById("status");
 
     if (!repoURL) {
-      status.textContent = "Please upload a file OR paste a GitHub repo URL.";
+      status.textContent = "Please paste a GitHub repo URL.";
       return;
     }
 
@@ -266,14 +242,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       status.textContent = "Loading repository...";
-      await startRepoSession(owner, repo);
+      const data = await startRepoSession(owner, repo);
 
       document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
       buildPromptList("prompt-select-repo", "run-btn-repo");
       status.textContent = "";
       showPage("page-repo");
-    } catch (error) {
-      status.textContent = error.message || "Error loading repository.";
+    } catch (err) {
+      status.textContent = err.message;
     }
   });
 

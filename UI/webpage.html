@@ -19,39 +19,22 @@
     <h1>CodeMap</h1>
   
     <div class="upload-box">
-      <p style="margin-bottom: 1.5rem; font-size: 1.1rem;">
-        Upload a local directory or enter repository link
-      </p>
-  
-      <!-- File upload – now in the same style as the text input -->
-      <div style="margin-bottom: 0.5rem;">
-        <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-          Option 1: Choose local files or folder
-        </label>
-        <input type="file" 
-          id="fileInput" 
-          webkitdirectory 
-          directory 
-          multiple 
-        />
-      </div>
-  
-      <button id="uploadButton" style="margin-bottom: 3rem">Upload Files</button>
+      <h2 id="selected-prompt-title" style="margin-bottom: 1.5rem; color: #1f2937;"></h2>
 
-  <div style="margin-bottom: 0.5rem;">
-      <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-        Option 2: Upload Github repository
-      </label>
-      <!-- Repository URL – already styled nicely by your CSS -->
-      <input 
-        type="text" 
-        id="repoURL" 
-        placeholder="Repository Link (e.g. https://github.com/user/repo)"
-      />
-  </div>
-      <button id="loadRepoButton">Load Repository</button>
-  
-      <p id="status"></p>
+      <div id="file-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
+        <label for="file-select">Choose a file:</label>
+        <select id="file-select"></select>
+      </div>
+
+      <div id="function-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
+        <label for="function-select">Choose a function:</label>
+        <select id="function-select"></select>
+      </div>
+
+      <button id="run-query-btn" style="margin-bottom: 1rem;">Run Query</button>
+
+      <div id="results-content"></div>
+      <button id="backButton3">← Back</button>
     </div>
   </div>
 

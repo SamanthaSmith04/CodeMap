@@ -18,7 +18,7 @@ ES_URL = "http://127.0.0.1:9201"
 INDEX_PREFIX = "github_rag_index"
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 PROMPTS_FILE = "CodeMap-prompts/prompt_templates.json"
-SESSIONS = {}
+SESSIONS: dict[str, dict] = {}
 
 Settings.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME)
 Settings.llm = Ollama(model="llama3.1", request_timeout=360.0)
@@ -254,13 +254,13 @@ async def query_session(session: dict, template_key: str, file_index: int | None
 
     return {
         "description": selected["description"],
-        "answer": answer,
+        "answer": str(answer),
         "selected_file": selected_file,
     }
 
 @app.route('/api/query_session', methods=['POST'])
 async def handle_query_session():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     session_id = data.get("session_id")
     template_key = data.get("template_key")
@@ -269,21 +269,17 @@ async def handle_query_session():
     if not session_id or not template_key:
         return jsonify({"error": "Missing session_id or template_key"}), 400
 
-    if session_id not in SESSIONS:
+    session = SESSIONS.get(session_id)
+    if not session:
         return jsonify({"error": "Invalid session_id"}), 404
 
     try:
         result = await query_session(
-            session=SESSIONS[session_id],
+            session=session,
             template_key=template_key,
             file_index=file_index
         )
-
-        return jsonify({
-            "description": result["description"],
-            "answer": str(result["answer"]),
-            "selected_file": result.get("selected_file")
-        }), 200
+        return jsonify(result), 200
 
     except KeyError as e:
         return jsonify({"error": str(e)}), 404
@@ -296,7 +292,7 @@ async def handle_query_session():
 
 @app.route('/api/start_repo_session', methods=['POST'])
 async def start_repo_session():
-    data = request.get_json()
+    data = request.get_json() or {}
     owner = data.get("owner")
     repo = data.get("repo")
 
@@ -326,7 +322,7 @@ async def start_repo_session():
 
         return jsonify({
             "session_id": session_id,
-            "files": files
+            "files": files,
         }), 200
 
     except Exception as e:
