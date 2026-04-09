@@ -11,8 +11,12 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from github_api_calls import set_up_github_connection, get_repo_contents, get_commit_history, get_issue_history
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
+
 
 ES_URL = "http://127.0.0.1:9201"
 INDEX_PREFIX = "github_rag_index"
@@ -251,10 +255,6 @@ async def query_session(session: dict, template_key: str, file_index: int | None
         "selected_file": selected_file,
     }
 
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
 @app.route('/api/query_session', methods=['POST'])
 async def handle_query_session():
     # 1. Get the JSON data from the request
@@ -286,7 +286,7 @@ async def handle_query_session():
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred"}), 500
 
-@app.route('api/download_github_repo', methods=['POST'])
+@app.route('/api/download_github_repo', methods=['POST'])
 async def handle_download_github_repo():
     data = request.get_json()
 
@@ -398,11 +398,12 @@ async def main():
         print(f"Session {session_id} closed.")
 
 if __name__ == "__main__":
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        print("\nStopped by user.")
-    finally:
-        loop.close()
+    # try:
+    app.run(debug=True)
+    #     loop = asyncio.new_event_loop()
+    #     asyncio.set_event_loop(loop)
+    #     loop.run_until_complete(main())
+    # except KeyboardInterrupt:
+    #     print("\nStopped by user.")
+    # finally:
+    #     loop.close()
