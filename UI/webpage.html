@@ -1,23 +1,86 @@
 <!DOCTYPE html>
-<link rel="stylesheet" href="style.css">
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CodeMap</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 
-
 <body>
-    <video autoplay muted loop playsinline class="water-video">
-        <source src="water.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-      </video>
-      
+  <video autoplay muted loop playsinline class="water-video">
+    <source src="water.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+
   <!-- Page 1: Upload -->
   <div class="container" id="homepage">
     <h1>CodeMap</h1>
-  
+
+    <div class="upload-box">
+      <p style="margin-bottom: 1.5rem; font-size: 1.1rem;">
+        Upload a local directory or enter repository link
+      </p>
+
+      <div style="margin-bottom: 0.5rem;">
+        <label for="fileInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+          Option 1: Choose local files or folder
+        </label>
+        <input
+          type="file"
+          id="fileInput"
+          webkitdirectory
+          directory
+          multiple
+        />
+      </div>
+
+      <button id="uploadButton" style="margin-bottom: 3rem">Upload Files</button>
+
+      <div style="margin-bottom: 0.5rem;">
+        <label for="repoURL" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+          Option 2: Upload Github repository
+        </label>
+        <input
+          type="text"
+          id="repoURL"
+          placeholder="Repository Link (e.g. https://github.com/user/repo)"
+        />
+      </div>
+
+      <button id="loadRepoButton">Load Repository</button>
+
+      <p id="status"></p>
+    </div>
+  </div>
+
+  <!-- Page 2: File prompt selection -->
+  <div class="container hidden" id="page-files">
+    <h1>CodeMap</h1>
+    <div class="upload-box">
+      <p style="margin-bottom: 1rem; font-size: 1.1rem;">Files uploaded. Choose an analysis:</p>
+      <div id="files-list" style="text-align: left; margin-bottom: 1.5rem;"></div>
+      <div id="prompt-select-files"></div>
+      <button id="backButton">← Back</button>
+      <button id="run-btn-files" disabled>Run</button>
+    </div>
+  </div>
+
+  <!-- Page 2: Repo prompt selection -->
+  <div class="container hidden" id="page-repo">
+    <h1>CodeMap</h1>
+    <div class="upload-box">
+      <p style="margin-bottom: 1rem; font-size: 1.1rem;">Repository loaded. Choose an analysis:</p>
+      <p id="repo-name-display" style="margin-bottom: 1.5rem; font-weight: 500; color: #4b5563;"></p>
+      <div id="prompt-select-repo"></div>
+      <button id="backButton2">← Back</button>
+      <button id="run-btn-repo" disabled>Run</button>
+    </div>
+  </div>
+
+  <!-- Page 3: Results / query page -->
+  <div class="container hidden" id="page-results">
+    <h1>CodeMap</h1>
     <div class="upload-box">
       <h2 id="selected-prompt-title" style="margin-bottom: 1.5rem; color: #1f2937;"></h2>
 
@@ -38,54 +101,6 @@
     </div>
   </div>
 
-   <!-- Page 2: File prompt selection -->
-   <div class="container hidden" id="page-files">
-    <h1>CodeMap</h1>
-    <div class="upload-box">
-      <p style="margin-bottom: 1rem; font-size: 1.1rem;">Files uploaded. Choose an analysis:</p>
-      <div id="files-list" style="text-align: left; margin-bottom: 1.5rem;"></div>
-      <div id="prompt-select-files"></div>
-      <button id="backButton">← Back</button>
-      <button id="run-btn-files" disabled>Run</button>
-    </div>
-  </div>
-
-   <!-- Page 2: Repo prompt selection -->
-   <div class="container hidden" id="page-repo">
-    <h1>CodeMap</h1>
-    <div class="upload-box">
-      <p style="margin-bottom: 1rem; font-size: 1.1rem;">Repository loaded. Choose an analysis:</p>
-      <p id="repo-name-display" style="margin-bottom: 1.5rem; font-weight: 500; color: #4b5563;"></p>
-      <div id="prompt-select-repo"></div>
-      <button id="backButton2">← Back</button>
-      <button id="run-btn-repo" disabled>Run</button>
-    </div>
-  </div>
-
-  <!-- Page 3: Continuing on after selecting a prompt-->
-  <div id="page-results" class="container hidden">
-    <div class="upload-box">
-      <h2 id="selected-prompt-title" style="margin-bottom: 1.5rem; color: #1f2937;"></h2>
-      <!-- File dropdown -->
-      <div id="file-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
-        <label for="file-select">Choose a file:</label>
-        <select id="file-select"></select>
-      </div>
-      <!-- Function dropdown (optional UI) -->
-      <div id="function-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
-        <label for="function-select">Choose a function:</label>
-        <select id="function-select"></select>
-      </div>
-      <!-- Run query button -->
-      <button id="run-query-btn" style="margin-bottom: 1rem;">
-        Run Query
-      </button>
-      <!-- Results -->
-      <div id="results-content"></div>
-      <button id="backButton3">← Back</button>
-    </div>
-  </div>
   <script src="script.js"></script>
-</body> 
-
+</body>
 </html>
