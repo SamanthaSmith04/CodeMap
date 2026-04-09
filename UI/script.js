@@ -128,9 +128,11 @@ function getSessionPath(choice = "", userInputSessionId = "") {
   // Generate random session ID (8 hex chars)
   const randomId = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
 
-  const sessionId = (choice !== "3")
-      ? randomId
-      : userInputSessionId.trim();
+  // const sessionId = (choice !== "3")
+  //     ? randomId
+  //     : userInputSessionId.trim();
+
+  sessionId = randomId
 
   // In browser, no true cwd → simulate with base path
   const basePath = ""; // or something like "/tmp" if your backend expects it
