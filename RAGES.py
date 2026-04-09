@@ -3,6 +3,8 @@ import json
 import asyncio
 import uuid
 import shutil
+import tempfile
+
 from elasticsearch import AsyncElasticsearch, Elasticsearch
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext
 from llama_index.core.ingestion import IngestionPipeline
@@ -40,12 +42,15 @@ def download_github_repo(owner: str, repo: str, temp_dir: str) -> str:
     print(f"Downloading GitHub repository: {owner}/{repo} into {temp_dir}")
     
     try:
-        os.makedirs(temp_dir, exist_ok=True)
+        repo_path = os.path.join(os.getcwd(), "temp_repos/"+temp_dir['sessionId'])
+        os.makedirs(repo_path, exist_ok=True)
+        print(f"Repository downloaded successfully to {repo_path}")
         headers, url = set_up_github_connection(owner, repo)
-        get_repo_contents(headers, url, save_path=temp_dir) 
-        get_commit_history(headers, url, save_path=temp_dir)
-        get_issue_history(headers, url, save_path=temp_dir)
-        return temp_dir
+        get_repo_contents(headers, url, save_path=repo_path) 
+        get_commit_history(headers, url, save_path=repo_path)
+        get_issue_history(headers, url, save_path=repo_path)
+
+        return repo_path
         
     except Exception as e:
         print(f"Error downloading repository: {e}")
@@ -296,7 +301,7 @@ async def handle_query_session():
 
 @app.route('/api/download_github_repo', methods=['POST'])
 async def handle_download_github_repo():
-    data = request.get_json()
+    data = request.get_json(force=True)
 
     repo_owner = data.get("repo_owner")
     repo_name = data.get("repo_name")
@@ -310,9 +315,9 @@ async def handle_download_github_repo():
         return jsonify({"error": "Missing save location"})
 
     try:
-        result = await download_github_repo(repo_owner, repo_name, temp_dir)
+        result = download_github_repo(repo_owner, repo_name, temp_dir)
 
-        return jsonify(result), 200
+        return jsonify({"path": result}), 200
     
     except KeyError as e:
         return jsonify({"error": str(e)}), 404

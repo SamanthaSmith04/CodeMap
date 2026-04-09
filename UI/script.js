@@ -143,8 +143,8 @@ function getSessionPath(choice = "", userInputSessionId = "") {
 }
 //
 document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
-document.getElementById("loadRepoButton").addEventListener("click", async () => {
-
+document.getElementById("loadRepoButton").addEventListener("click", async (event) => {
+  event.preventDefault();
   const repoURL = document.getElementById("repoURL").value.trim();
   const status = document.getElementById("status");
 
@@ -160,10 +160,11 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
     if (await checkRepoExists(repoURL)) {
       document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
       buildPromptList('prompt-select-repo', 'run-btn-repo');
-      showPage('page-repo'); 
       //Pulls the files from the github repo to a temp file for us to use to run
       tempDir = getSessionPath()
-      downloadGithubRepo(owner, repo, tempDir);
+      const path = await downloadGithubRepo(owner, repo, tempDir)
+
+      showPage('page-repo'); 
     } else {
       status.textContent = "Invalid GitHub URL.";
     }
@@ -172,7 +173,7 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
     status.textContent = "Error checking repository.";
   }
 
-  });
+});
 
 
 /* 
