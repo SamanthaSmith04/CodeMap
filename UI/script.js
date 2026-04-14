@@ -15,6 +15,10 @@ const PROMPTS = [
   { id: "E2", key: "list-functions",          desc: "List all functions per file (JSON)" },
 ];
 
+let currentSessionId = null;
+let currentIndexName = null;
+let repoPathOnServer = null;
+
 function showPage(id) {
   document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
@@ -144,36 +148,100 @@ function getSessionPath(choice = "", userInputSessionId = "") {
 //
 document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
 document.getElementById("loadRepoButton").addEventListener("click", async (event) => {
-  event.preventDefault();
-  const repoURL = document.getElementById("repoURL").value.trim();
-  const status = document.getElementById("status");
-
-  //Case 1: Repo URL entered
-  //if (repoURL) {
+    event.preventDefault();
+    const repoURL = document.getElementById("repoURL").value.trim();
+    const status = document.getElementById("status");
 
     const cleanURL = repoURL.replace(/\.git$/, '').replace(/\/$/, '');
     const match = cleanURL.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!match) return;
 
-    const owner = match[1];
-    const repo = match[2];
-  try{
-    if (await checkRepoExists(repoURL)) {
-      document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
-      buildPromptList('prompt-select-repo', 'run-btn-repo');
-      //Pulls the files from the github repo to a temp file for us to use to run
-      tempDir = getSessionPath()
-      const path = await downloadGithubRepo(owner, repo, tempDir)
+    const [_, owner, repo] = match;
 
-      showPage('page-repo'); 
-    } else {
-      status.textContent = "Invalid GitHub URL.";
+    try {
+        if (await checkRepoExists(repoURL)) {
+            status.textContent = "Downloading repository...";
+            const sessionInfo = getSessionPath(); // your existing helper
+            currentSessionId = sessionInfo.sessionId;
+
+            // Step A: Download
+            const downloadData = await downloadGithubRepo(owner, repo, sessionInfo);
+            repoPathOnServer = downloadData.path;
+
+            // Step B: Initialize Index (Backend Pipeline)
+            status.textContent = "Indexing files (this may take a minute)...";
+            const initRes = await fetch('http://127.0.0.1:5000/api/initialize_index', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo_path: repoPathOnServer, session_id: currentSessionId })
+            });
+            const initData = await initRes.json();
+            currentIndexName = initData.index_name;
+
+            document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
+            buildPromptList('prompt-select-repo', 'run-btn-repo');
+            showPage('page-repo');
+            status.textContent = "";
+        }
+    } catch (error) {
+        status.textContent = "Error: " + error.message;
     }
-  }catch (error) {
-    console.error(error);
-    status.textContent = "Error checking repository.";
-  }
-
 });
+
+async function runAnalysis() {
+    const resultsContainer = document.getElementById("results-content");
+    const fileSelect = document.getElementById("file-select");
+    
+    // 1. Clear previous result and setup visual feedback
+    resultsContainer.innerHTML = `
+        <div id="loading-container">
+            <p id="loading-text"><strong>Llama 3 is thinking...</strong></p>
+            <p id="timer-text">Time elapsed: 0s</p>
+            <p style="font-size: 0.8rem; color: #666;">(Check browser console and terminal for details)</p>
+        </div>
+    `;
+
+    // 2. Start a timer to show activity
+    let seconds = 0;
+    const timerInterval = setInterval(() => {
+        seconds++;
+        const timerEl = document.getElementById("timer-text");
+        if (timerEl) timerEl.textContent = `Time elapsed: ${seconds}s`;
+    }, 1000);
+
+    console.log("%c[FETCH] Sending request to Flask API...", "color: blue; font-weight: bold;");
+
+    try {
+        const payload = {
+            index_name: currentIndexName,
+            template_key: selectedPrompt.key,
+            file_index: fileSelect.value !== "" ? parseInt(fileSelect.value) : null
+        };
+
+        const response = await fetch('http://127.0.0.1:5000/api/query_session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+        const data = await response.json();
+        
+        // 3. Stop timer and show result
+        clearInterval(timerInterval);
+        console.log("%c[SUCCESS] Response received from Llama 3.", "color: green; font-weight: bold;");
+        
+        resultsContainer.innerHTML = data.answer 
+            ? `<div class="answer-box"><pre style="white-space: pre-wrap;">${data.answer}</pre></div>` 
+            : `<p class="error">Error: ${data.error}</p>`;
+
+    } catch (error) {
+        clearInterval(timerInterval);
+        console.error("[ERROR] Query failed:", error);
+        resultsContainer.innerHTML = `<p class="error"><strong>Analysis Failed:</strong> ${error.message}</p>`;
+    }
+}
 
 
 /* 
@@ -233,115 +301,31 @@ function populateSelect(selectEl, items, placeholder) {
   });
 }
  
-function setupPage3Dropdowns(prompt) {
-  const fileSection     = document.getElementById("file-dropdown-section");
-  const functionSection = document.getElementById("function-dropdown-section");
-  const fileSelect      = document.getElementById("file-select");
-  const functionSelect  = document.getElementById("function-select");
- 
-  if (!fileSection || !functionSection) return;
+async function setupPage3Dropdowns(prompt) {
+    const fileSection = document.getElementById("file-dropdown-section");
+    const fileSelect = document.getElementById("file-select");
 
-  // Hide both to start
-  fileSection.classList.add("hidden");
-  functionSection.classList.add("hidden");
-  functionSelect.disabled = true;
-
-  
-  switch(prompt.id) {
-
-    case "A1":
-        query_session(null, "A1");
-
-      break;
-      
-    case "A2":
-        //Call func
-      break;
-
-    case "A3":
-        //Call func
-      break;
+    // Fetch the actual file list from the backend index
+    const res = await fetch('http://127.0.0.1:5000/api/get_files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index_name: currentIndexName })
+    });
+    const data = await res.json();
     
-    case "B1":
-        //Call func
-      break; 
-
-    case "B2":
-        //Call func
-      break;
-
-    case "B3":
-        //Call func
-      break;
-
-    case "B4":
-        //Call func
-      break;
-
-    case "C1":
-     // File dropdown only
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      fileSection.classList.remove("hidden");
-      break;
-
-    case "C2":
-      // Function dropdown only (not dependent on a file)
-      populateSelect(functionSelect, esAllFunctions, "-- Choose a function --");
-      functionSelect.disabled = false;
-      functionSection.classList.remove("hidden");
-      break;
-      
-    case "C3":
-        // File first, then function dropdown populates based on selection
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      populateSelect(functionSelect, [], "-- Select a file first --");
-      fileSection.classList.remove("hidden");
-      functionSection.classList.remove("hidden");
- 
-      fileSelect.addEventListener("change", () => {
-        const selectedFile = fileSelect.value;
-        if (selectedFile && esFunctionsByFile[selectedFile]) {
-          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-          functionSelect.disabled = false;
-        } else {
-          populateSelect(functionSelect, [], "-- Select a file first --");
-          functionSelect.disabled = true;
-        }
-      });
-      break;
-
-    case "D1":
-        //Call func
-      break; 
-    
-    case "D2":
-        // File first, then function dropdown populates based on selection
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      populateSelect(functionSelect, [], "-- Select a file first --");
-      fileSection.classList.remove("hidden");
-      functionSection.classList.remove("hidden");
- 
-      fileSelect.addEventListener("change", () => {
-        const selectedFile = fileSelect.value;
-        if (selectedFile && esFunctionsByFile[selectedFile]) {
-          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-          functionSelect.disabled = false;
-        } else {
-          populateSelect(functionSelect, [], "-- Select a file first --");
-          functionSelect.disabled = true;
-        }
-      });
-      break;
-
-    case "E1":
-        //Call func
-      break; 
-
-    case "E2":
-        //Call func
-      break; 
-
-  }
+    // Show dropdown if prompt needs it (C1, C2, C3, D2)
+    if (["C1", "C2", "C3", "D2"].includes(prompt.id)) {
+        fileSection.classList.remove("hidden");
+        fileSelect.innerHTML = '<option value="">-- Select a File --</option>';
+        data.files.forEach((file, index) => {
+            const opt = document.createElement("option");
+            opt.value = index;
+            opt.textContent = file.value;
+            fileSelect.appendChild(opt);
+        });
+    } else {
+        fileSection.classList.add("hidden");
+    }
 }
  
 function goToPage3(prevPage) {
@@ -351,6 +335,8 @@ function goToPage3(prevPage) {
   showPage("page-results");
 }
 document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("run-query-btn").addEventListener("click", runAnalysis);
+
   document.getElementById("run-btn-files").addEventListener("click", () => {
     goToPage3("page-files");
   });

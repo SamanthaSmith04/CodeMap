@@ -84,13 +84,24 @@
     
   <!-- Page 3: Continuing on after selecting a prompt-->
   <div class="container hidden" id="page-results">
-    <h1>CodeMap</h1>
-    <div class="upload-box">
-      <h2 id="selected-prompt-title" style="margin-bottom: 1.5rem; color: #1f2937;"></h2>
-      <div id="results-content"></div>
+  <h1>CodeMap Analysis</h1>
+  <div class="upload-box">
+    <h2 id="selected-prompt-title"></h2>
+    
+    <div id="file-dropdown-section" class="hidden" style="margin-bottom: 1rem;">
+      <label>Select File:</label>
+      <select id="file-select"></select>
+    </div>
+
+    <div id="results-content" style="margin-top: 1.5rem; text-align: left; background: #f9fafb; padding: 1rem; border-radius: 8px; min-height: 100px;">
+      </div>
+
+    <div style="margin-top: 2rem;">
+      <button id="run-query-btn" class="primary-btn">Run Analysis</button>
       <button id="backButton3">← Back</button>
     </div>
   </div>
+</div>
 </body> 
 
 </html>

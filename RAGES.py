@@ -270,36 +270,92 @@ async def query_session(session: dict, template_key: str, file_index: int | None
         "selected_file": selected_file,
     }
 
+@app.route('/api/initialize_index', methods=['POST'])
+async def handle_initialize():
+    data = request.get_json()
+    repo_path = data.get("repo_path")
+    session_id = data.get("session_id")
+    index_name = f"{INDEX_PREFIX}_{session_id}"
+    
+    try:
+        # This runs the LlamaIndex ingestion
+        await set_up_pipeline(repo_path, index_name)
+        return jsonify({"status": "indexed", "index_name": index_name}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/get_files', methods=['POST'])
+async def handle_get_files():
+    data = request.get_json()
+    index_name = data.get("index_name")
+    
+    async_es_client = AsyncElasticsearch(ES_URL)
+    try:
+        files = await get_indexed_files(async_es_client, index_name)
+        return jsonify({"files": files}), 200
+    finally:
+        await async_es_client.close()
+
+async def query_session_v2(index_name: str, template_key: str, file_index: int | None = None):
+    templates = load_prompt_templates()
+    selected = templates[template_key]
+    current_prompt = selected["prompt"]
+
+    async_es_client = AsyncElasticsearch(ES_URL)
+    vector_store = ElasticsearchStore(index_name=index_name, es_client=async_es_client)
+    
+    try:
+        if file_index is not None:
+            current_prompt, _ = await apply_file_to_prompt(
+                async_es_client, index_name, selected, current_prompt, file_index
+            )
+
+        answer = await run_query(vector_store, async_es_client, current_prompt)
+        return {
+            "description": selected["description"],
+            "answer": str(answer),
+        }
+    finally:
+        await async_es_client.close()
+
 @app.route('/api/query_session', methods=['POST'])
 async def handle_query_session():
-    # 1. Get the JSON data from the request
     data = request.get_json()
-    
-    # 2. Extract parameters (ensure they exist or provide defaults)
-    session_data = data.get("session")
+    index_name = data.get("index_name")
     template_key = data.get("template_key")
-    file_index = data.get("file_index") # Can be None
+    file_index = data.get("file_index")
 
-    if not session_data or not template_key:
-        return jsonify({"error": "Missing session or template_key"}), 400
+    # --- ADD THIS LOGGING ---
+    print(f"\n[SERVER] Received query request for index: {index_name}")
+    print(f"[SERVER] Template: {template_key} | File Index: {file_index}")
 
+    async_es_client = AsyncElasticsearch(ES_URL)
+    vector_store = ElasticsearchStore(index_name=index_name, es_client=async_es_client)
+    
     try:
-        # 3. Await your async function
-        result = await query_session(
-            session=session_data, 
-            template_key=template_key, 
-            file_index=file_index
-        )
-        
-        # 4. Return the dictionary as JSON
-        return jsonify(result), 200
+        templates = load_prompt_templates()
+        selected = templates[template_key]
+        current_prompt = selected["prompt"]
 
-    except KeyError as e:
-        return jsonify({"error": str(e)}), 404
-    except RuntimeError as e:
-        return jsonify({"error": str(e)}), 500
+        if file_index is not None:
+            print(f"[SERVER] Fetching file content for indexing...")
+            current_prompt, _ = await apply_file_to_prompt(
+                async_es_client, index_name, selected, current_prompt, file_index
+            )
+
+        print("[SERVER] Starting Llama 3 generation via Ollama... (this may take time)")
+        answer = await run_query(vector_store, async_es_client, current_prompt)
+        
+        print("[SERVER] Query complete! Sending response to frontend.")
+        return jsonify({
+            "answer": str(answer),
+            "description": selected["description"]
+        }), 200
     except Exception as e:
-        return jsonify({"error": "An unexpected error occurred"}), 500
+        print(f"[SERVER] ERROR occurred: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        await async_es_client.close()
 
 @app.route('/api/download_github_repo', methods=['POST'])
 def handle_download_github_repo():
