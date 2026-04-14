@@ -23,6 +23,21 @@ def set_up_github_connection(repo_url, token_location="GITHUBACCESSTOKEN"):
     }
     return headers, url
 
+def set_up_github_connection(owner, repo, token_location="GITHUBACCESSTOKEN"):
+    """
+    Sets up github connection
+    """
+    with open(token_location, "r") as f:
+        token = f.read().strip()
+
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    return headers, url
+
 def check_repo_exists(url):
     """
         Makes a test call to the API to validate the repo exists
@@ -48,7 +63,7 @@ def check_repo_exists(url):
         return false;
     return true;
 
-def get_repo_contents(headers, url):
+def get_repo_contents(headers, url, save_path):
     """
     Downloads the repo contents to files under the dynamic save_path.
     """

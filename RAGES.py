@@ -3,6 +3,8 @@ import json
 import asyncio
 import uuid
 import shutil
+import tempfile
+
 from elasticsearch import AsyncElasticsearch, Elasticsearch
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext
 from llama_index.core.ingestion import IngestionPipeline
@@ -11,8 +13,20 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from github_api_calls import set_up_github_connection, get_repo_contents, get_commit_history, get_issue_history
 from flask import Flask, request, jsonify
+import requests
+
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
+
+@app.after_request
+async def after_request(response):
+  response.headers.add('Access-Control-Allow-Origin', '*')
+  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+  return response
 
 ES_URL = "http://127.0.0.1:9201"
 INDEX_PREFIX = "github_rag_index"
@@ -28,12 +42,17 @@ def download_github_repo(owner: str, repo: str, temp_dir: str) -> str:
     print(f"Downloading GitHub repository: {owner}/{repo} into {temp_dir}")
     
     try:
-        os.makedirs(temp_dir, exist_ok=True)
+        repo_path = os.path.join("/tmp/CodeMap", temp_dir['sessionId'])
+        os.makedirs(repo_path, exist_ok=True)
+        # repo_path = os.path.join(os.getcwd(), "temp_repos/"+temp_dir['sessionId'])
+        # os.makedirs(repo_path, exist_ok=True)
+        print(f"Repository downloaded successfully to {repo_path}")
         headers, url = set_up_github_connection(owner, repo)
-        get_repo_contents(headers, url, save_path=temp_dir) 
-        get_commit_history(headers, url, save_path=temp_dir)
-        get_issue_history(headers, url, save_path=temp_dir)
-        return temp_dir
+        get_repo_contents(headers, url, save_path=repo_path) 
+        get_commit_history(headers, url, save_path=repo_path)
+        get_issue_history(headers, url, save_path=repo_path)
+
+        return repo_path
         
     except Exception as e:
         print(f"Error downloading repository: {e}")
@@ -251,10 +270,6 @@ async def query_session(session: dict, template_key: str, file_index: int | None
         "selected_file": selected_file,
     }
 
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
 @app.route('/api/query_session', methods=['POST'])
 async def handle_query_session():
     # 1. Get the JSON data from the request
@@ -285,6 +300,63 @@ async def handle_query_session():
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred"}), 500
+
+@app.route('/api/download_github_repo', methods=['POST'])
+def handle_download_github_repo():
+    data = request.get_json(force=True)
+
+    repo_owner = data.get("repo_owner")
+    repo_name = data.get("repo_name")
+    temp_dir = data.get("temp_dir")
+
+    if not repo_owner:
+        return jsonify({"error": "Missing repo owner"})
+    if not repo_name:
+        return jsonify({"error": "Missing repo name"})
+    if not temp_dir:
+        return jsonify({"error": "Missing save location"})
+
+    try:
+        result = download_github_repo(repo_owner, repo_name, temp_dir)
+
+        return jsonify({"path": result}), 200
+    
+    except KeyError as e:
+        return jsonify({"error": str(e)}), 404
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+@app.route('/api/repo_exists', methods=['POST'])
+async def check_repo_exists():
+    data = request.get_json()
+    
+    repo_url = data.get("url")
+    if not repo_url:
+        return jsonify({"error": "Missing repo URL"}), 400
+
+    # try:
+    repo_names = "/".join(repo_url.rstrip(".git").split("/")[-2:])
+    github_url = f"https://api.github.com/repos/{repo_names}"
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    response = requests.get(github_url, headers=headers)
+
+    if response.status_code == 200:
+        return jsonify({"exists": True}), 200
+    elif response.status_code == 404:
+        return jsonify({"exists": False}), 404
+    else:
+        return jsonify({"error": response.json().get("message", "Unknown error")}), 501
+
+    # except Exception as e:
+    #     return jsonify({"error": "An unexpected error occurred"}), 500
 
 async def main():
     # ... (Setup logic same as your original)
@@ -341,11 +413,12 @@ async def main():
         print(f"Session {session_id} closed.")
 
 if __name__ == "__main__":
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        print("\nStopped by user.")
-    finally:
-        loop.close()
+    # try:  
+    app.run(debug=True, port=5000, use_reloader=False) 
+    #     loop = asyncio.new_event_loop()
+    #     asyncio.set_event_loop(loop)
+    #     loop.run_until_complete(main())
+    # except KeyboardInterrupt:
+    #     print("\nStopped by user.")
+    # finally:
+    #     loop.close()

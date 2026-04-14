@@ -68,26 +68,115 @@ document.getElementById("uploadButton").addEventListener("click", () => {
 
 });
 
-document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
-document.getElementById("loadRepoButton").addEventListener("click", async () => {
 
+//Checks if repo exists
+async function checkRepoExists(repoUrl) {
+  try {
+      const response = await fetch('http://127.0.0.1:5000/api/repo_exists', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: repoUrl })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+          console.log("Exists:", data.exists);
+      } else {
+          console.error("Error:", data.error);
+      }
+      console.log("Data received:", data);
+      return data.exists;
+  } catch (err) {
+      console.error("Request failed:", err);
+  }
+}
+
+//Pulls down all the files from the github
+async function downloadGithubRepo(repoOwner, repoName, tempDir) {
+  try {
+      const response = await fetch('http://127.0.0.1:5000/api/download_github_repo', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+              repo_owner: repoOwner,
+              repo_name: repoName,
+              temp_dir: tempDir
+          })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+          console.log("Download success:", data);
+      } else {
+          console.error("Error:", data.error);
+      }
+
+      return data;
+  } catch (err) {
+      console.error("Request failed:", err);
+  }
+}
+
+//Gets the tempt directory
+function getSessionPath(choice = "", userInputSessionId = "") {
+  // Generate random session ID (8 hex chars)
+  const randomId = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+
+  // const sessionId = (choice !== "3")
+  //     ? randomId
+  //     : userInputSessionId.trim();
+
+  sessionId = randomId
+
+  // In browser, no true cwd → simulate with base path
+  const basePath = ""; // or something like "/tmp" if your backend expects it
+
+  const fullPath = `${basePath}/repo_${sessionId}`;
+
+  return { sessionId, fullPath };
+}
+//
+document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
+document.getElementById("loadRepoButton").addEventListener("click", async (event) => {
+  event.preventDefault();
   const repoURL = document.getElementById("repoURL").value.trim();
   const status = document.getElementById("status");
 
   //Case 1: Repo URL entered
-  if (repoURL) {
+  //if (repoURL) {
 
     const cleanURL = repoURL.replace(/\.git$/, '').replace(/\/$/, '');
     const match = cleanURL.match(/github\.com\/([^\/]+)\/([^\/]+)/);
 
-    if (!match) {
-      status.textContent = "Invalid GitHub URL.";
-      return;
-    }
-
     const owner = match[1];
     const repo = match[2];
+  try{
+    if (await checkRepoExists(repoURL)) {
+      document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
+      buildPromptList('prompt-select-repo', 'run-btn-repo');
+      //Pulls the files from the github repo to a temp file for us to use to run
+      tempDir = getSessionPath()
+      const path = await downloadGithubRepo(owner, repo, tempDir)
 
+      showPage('page-repo'); 
+    } else {
+      status.textContent = "Invalid GitHub URL.";
+    }
+  }catch (error) {
+    console.error(error);
+    status.textContent = "Error checking repository.";
+  }
+
+});
+
+
+/* 
     try {
 
       const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
@@ -109,8 +198,8 @@ document.getElementById("loadRepoButton").addEventListener("click", async () => 
 
   //Case 2: Nothing entered
   status.textContent = "Please upload a file OR paste a GitHub repo URL.";
+*/
 
-});
 
 //Adding things from here and below for page three where the results are posted 
 //and the dropdown for file and function
@@ -156,11 +245,13 @@ function setupPage3Dropdowns(prompt) {
   fileSection.classList.add("hidden");
   functionSection.classList.add("hidden");
   functionSelect.disabled = true;
+
   
   switch(prompt.id) {
 
     case "A1":
-        //Call func
+        query_session(null, "A1");
+
       break;
       
     case "A2":
