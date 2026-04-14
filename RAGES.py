@@ -42,8 +42,10 @@ def download_github_repo(owner: str, repo: str, temp_dir: str) -> str:
     print(f"Downloading GitHub repository: {owner}/{repo} into {temp_dir}")
     
     try:
-        repo_path = os.path.join(os.getcwd(), "temp_repos/"+temp_dir['sessionId'])
+        repo_path = os.path.join("/tmp/CodeMap", temp_dir['sessionId'])
         os.makedirs(repo_path, exist_ok=True)
+        # repo_path = os.path.join(os.getcwd(), "temp_repos/"+temp_dir['sessionId'])
+        # os.makedirs(repo_path, exist_ok=True)
         print(f"Repository downloaded successfully to {repo_path}")
         headers, url = set_up_github_connection(owner, repo)
         get_repo_contents(headers, url, save_path=repo_path) 
@@ -300,7 +302,7 @@ async def handle_query_session():
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 @app.route('/api/download_github_repo', methods=['POST'])
-async def handle_download_github_repo():
+def handle_download_github_repo():
     data = request.get_json(force=True)
 
     repo_owner = data.get("repo_owner")
@@ -411,8 +413,8 @@ async def main():
         print(f"Session {session_id} closed.")
 
 if __name__ == "__main__":
-    # try:
-    app.run(debug=True)
+    # try:  
+    app.run(debug=True, port=5000, use_reloader=False) 
     #     loop = asyncio.new_event_loop()
     #     asyncio.set_event_loop(loop)
     #     loop.run_until_complete(main())
