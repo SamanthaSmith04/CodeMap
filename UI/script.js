@@ -21,6 +21,8 @@ function showPage(id) {
 }
 
 let selectedPrompt = null;
+let currentRepoSessionId = null;
+let indexedRepoFiles = [];
 
 function buildPromptList(containerId, runBtnId) {
   const container = document.getElementById(containerId);
@@ -30,7 +32,7 @@ function buildPromptList(containerId, runBtnId) {
   PROMPTS.forEach(item => {
     const btn = document.createElement('button');
     btn.className = 'prompt-option';
-    btn.innerHTML = `<span class="prompt-id"></span> ${item.desc}`;
+    btn.innerHTML = `<span class="prompt-id">${item.id}</span> ${item.desc}`;
     btn.addEventListener('click', () => {
       container.querySelectorAll('.prompt-option').forEach(o => o.classList.remove('selected'));
       btn.classList.add('selected');
@@ -132,7 +134,7 @@ function getSessionPath(choice = "", userInputSessionId = "") {
   //     ? randomId
   //     : userInputSessionId.trim();
 
-  sessionId = randomId
+  const sessionId = randomId;
 
   // In browser, no true cwd → simulate with base path
   const basePath = ""; // or something like "/tmp" if your backend expects it
@@ -141,6 +143,72 @@ function getSessionPath(choice = "", userInputSessionId = "") {
 
   return { sessionId, fullPath };
 }
+
+function templateRequiresFileSelection(prompt) {
+  return ["C1", "C2", "C3", "D2"].includes(prompt.id);
+}
+
+async function fetchSessionFiles(sessionId) {
+  const response = await fetch('http://127.0.0.1:5000/api/session_files', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ session_id: sessionId })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Unable to load indexed files.');
+  }
+
+  return data.files || [];
+}
+
+async function runSelectedPrompt(fileIndex = null) {
+  const resultsContent = document.getElementById("results-content");
+  const resultsStatus = document.getElementById("results-status");
+
+  if (!currentRepoSessionId) {
+    resultsStatus.textContent = "Repository session not found. Please reload the repository.";
+    return;
+  }
+
+  resultsStatus.textContent = "Running analysis...";
+  resultsContent.textContent = "";
+
+  const payload = {
+    session_id: currentRepoSessionId,
+    template_key: selectedPrompt.key
+  };
+
+  if (fileIndex !== null) {
+    payload.file_index = fileIndex;
+  }
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/query_session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Unable to run analysis.');
+    }
+
+    resultsStatus.textContent = data.selected_file
+      ? `Showing results for ${data.selected_file}`
+      : '';
+    resultsContent.textContent = data.answer || 'No result returned.';
+  } catch (error) {
+    console.error(error);
+    resultsStatus.textContent = error.message || 'Unable to run analysis.';
+  }
+}
 //
 document.getElementById("backButton2").addEventListener("click", () => showPage('homepage'));
 document.getElementById("loadRepoButton").addEventListener("click", async (event) => {
@@ -148,21 +216,28 @@ document.getElementById("loadRepoButton").addEventListener("click", async (event
   const repoURL = document.getElementById("repoURL").value.trim();
   const status = document.getElementById("status");
 
-  //Case 1: Repo URL entered
-  //if (repoURL) {
+  if (!repoURL) {
+    status.textContent = "Please paste a GitHub repository URL.";
+    return;
+  }
 
-    const cleanURL = repoURL.replace(/\.git$/, '').replace(/\/$/, '');
-    const match = cleanURL.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  const cleanURL = repoURL.replace(/\.git$/, '').replace(/\/$/, '');
+  const match = cleanURL.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) {
+    status.textContent = "Please enter a valid GitHub repository URL.";
+    return;
+  }
 
-    const owner = match[1];
-    const repo = match[2];
+  const owner = match[1];
+  const repo = match[2];
   try{
     if (await checkRepoExists(repoURL)) {
       document.getElementById("repo-name-display").textContent = `${owner} / ${repo}`;
       buildPromptList('prompt-select-repo', 'run-btn-repo');
-      //Pulls the files from the github repo to a temp file for us to use to run
-      tempDir = getSessionPath()
-      const path = await downloadGithubRepo(owner, repo, tempDir)
+      const tempDir = getSessionPath();
+      const data = await downloadGithubRepo(owner, repo, tempDir);
+      currentRepoSessionId = data?.session_id || tempDir.sessionId;
+      indexedRepoFiles = [];
 
       showPage('page-repo'); 
     } else {
@@ -238,118 +313,43 @@ function setupPage3Dropdowns(prompt) {
   const functionSection = document.getElementById("function-dropdown-section");
   const fileSelect      = document.getElementById("file-select");
   const functionSelect  = document.getElementById("function-select");
+  const runButton       = document.getElementById("run-selected-prompt");
+  const resultsStatus   = document.getElementById("results-status");
  
-  if (!fileSection || !functionSection) return;
+  if (!fileSection || !functionSection || !runButton) return;
 
-  // Hide both to start
   fileSection.classList.add("hidden");
   functionSection.classList.add("hidden");
+  runButton.classList.add("hidden");
   functionSelect.disabled = true;
+  resultsStatus.textContent = "";
+  document.getElementById("results-content").textContent = "";
+  fileSelect.onchange = null;
+  runButton.onclick = null;
 
-  
-  switch(prompt.id) {
-
-    case "A1":
-        query_session(null, "A1");
-
-      break;
-      
-    case "A2":
-        //Call func
-      break;
-
-    case "A3":
-        //Call func
-      break;
-    
-    case "B1":
-        //Call func
-      break; 
-
-    case "B2":
-        //Call func
-      break;
-
-    case "B3":
-        //Call func
-      break;
-
-    case "B4":
-        //Call func
-      break;
-
-    case "C1":
-     // File dropdown only
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      fileSection.classList.remove("hidden");
-      break;
-
-    case "C2":
-      // Function dropdown only (not dependent on a file)
-      populateSelect(functionSelect, esAllFunctions, "-- Choose a function --");
-      functionSelect.disabled = false;
-      functionSection.classList.remove("hidden");
-      break;
-      
-    case "C3":
-        // File first, then function dropdown populates based on selection
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      populateSelect(functionSelect, [], "-- Select a file first --");
-      fileSection.classList.remove("hidden");
-      functionSection.classList.remove("hidden");
- 
-      fileSelect.addEventListener("change", () => {
-        const selectedFile = fileSelect.value;
-        if (selectedFile && esFunctionsByFile[selectedFile]) {
-          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-          functionSelect.disabled = false;
-        } else {
-          populateSelect(functionSelect, [], "-- Select a file first --");
-          functionSelect.disabled = true;
-        }
-      });
-      break;
-
-    case "D1":
-        //Call func
-      break; 
-    
-    case "D2":
-        // File first, then function dropdown populates based on selection
-      populateSelect(fileSelect, esFiles, "-- Choose a file --");
-      populateSelect(functionSelect, [], "-- Select a file first --");
-      fileSection.classList.remove("hidden");
-      functionSection.classList.remove("hidden");
- 
-      fileSelect.addEventListener("change", () => {
-        const selectedFile = fileSelect.value;
-        if (selectedFile && esFunctionsByFile[selectedFile]) {
-          populateSelect(functionSelect, esFunctionsByFile[selectedFile], "-- Choose a function --");
-          functionSelect.disabled = false;
-        } else {
-          populateSelect(functionSelect, [], "-- Select a file first --");
-          functionSelect.disabled = true;
-        }
-      });
-      break;
-
-    case "E1":
-        //Call func
-      break; 
-
-    case "E2":
-        //Call func
-      break; 
-
+  if (!templateRequiresFileSelection(prompt)) {
+    runSelectedPrompt();
+    return;
   }
+
+  fileSection.classList.remove("hidden");
+  runButton.classList.remove("hidden");
+  resultsStatus.textContent = "Choose a file, then run the analysis.";
+
+  if (indexedRepoFiles.length > 0) {
+    populateSelect(fileSelect, indexedRepoFiles.map(file => file.value), "-- Choose a file --");
+  }
+
+  runButton.onclick = () => {
+    const selectedIndex = fileSelect.selectedIndex - 1;
+    if (selectedIndex < 0) {
+      resultsStatus.textContent = "Please choose a file first.";
+      return;
+    }
+    runSelectedPrompt(selectedIndex);
+  };
 }
  
-function goToPage3(prevPage) {
-  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
-  document.getElementById("backButton3").dataset.prev = prevPage;
-  setupPage3Dropdowns(selectedPrompt);
-  showPage("page-results");
-}
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("run-btn-files").addEventListener("click", () => {
     goToPage3("page-files");
@@ -364,3 +364,23 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+async function goToPage3(prevPage) {
+  document.getElementById("selected-prompt-title").textContent = selectedPrompt.desc;
+  document.getElementById("backButton3").dataset.prev = prevPage;
+
+  if (prevPage === "page-repo" && templateRequiresFileSelection(selectedPrompt)) {
+    const resultsStatus = document.getElementById("results-status");
+    resultsStatus.textContent = "Loading indexed files...";
+
+    try {
+      indexedRepoFiles = await fetchSessionFiles(currentRepoSessionId);
+    } catch (error) {
+      console.error(error);
+      indexedRepoFiles = [];
+      resultsStatus.textContent = error.message || "Unable to load files for this repository.";
+    }
+  }
+
+  setupPage3Dropdowns(selectedPrompt);
+  showPage("page-results");
+}

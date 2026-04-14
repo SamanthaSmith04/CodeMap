@@ -6,7 +6,7 @@ import shutil
 import tempfile
 
 from elasticsearch import AsyncElasticsearch, Elasticsearch
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.vector_stores.elasticsearch import ElasticsearchStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -20,6 +20,8 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+
+ACTIVE_SESSIONS = {}
 
 @app.after_request
 async def after_request(response):
@@ -171,6 +173,8 @@ async def apply_file_to_prompt(async_es_client, index_name, selected_template, c
 
         if file_index is None:
             raise ValueError("This template requires a file selection.")
+        if file_index < 0 or file_index >= len(files):
+            raise ValueError("Selected file is out of range.")
 
         chosen = files[file_index]
         selected_file = chosen["value"]
@@ -191,6 +195,8 @@ async def apply_file_to_prompt(async_es_client, index_name, selected_template, c
             """.strip()
 
         return current_prompt, selected_file
+
+    return current_prompt, selected_file
 
 def load_prompt_templates():
     if not os.path.exists(PROMPTS_FILE):
@@ -213,11 +219,6 @@ async def set_up_pipeline(repo_path: str, index_name: str):
 
     # 3. Setup Vector Store with the unique index name
     async_es_client = AsyncElasticsearch(ES_URL)
-    vector_store = ElasticsearchStore(
-        index_name=index_name, 
-        es_client=async_es_client,
-    )
-
     # 4. Ingestion
     pipeline = IngestionPipeline(
         transformations=[Settings.node_parser, Settings.embed_model],
@@ -228,6 +229,14 @@ async def set_up_pipeline(repo_path: str, index_name: str):
     )
     await pipeline.arun(documents=documents, show_progress=True)
 
+    await async_es_client.close()
+
+def build_session_resources(index_name: str):
+    async_es_client = AsyncElasticsearch(ES_URL)
+    vector_store = ElasticsearchStore(
+        index_name=index_name,
+        es_client=async_es_client,
+    )
     return vector_store, async_es_client
 
 async def run_query(vector_store, async_es_client, user_prompt: str):
@@ -254,21 +263,26 @@ async def query_session(session: dict, template_key: str, file_index: int | None
     selected = templates[template_key]
     current_prompt = selected["prompt"]
 
-    current_prompt, selected_file = await apply_file_to_prompt(
-        session["client"],
-        session["index_name"],
-        selected,
-        current_prompt,
-        file_index=file_index,
-    )
+    vector_store, async_es_client = build_session_resources(session["index_name"])
 
-    answer = await run_query(session["vector_store"], session["client"], current_prompt)
+    try:
+        current_prompt, selected_file = await apply_file_to_prompt(
+            async_es_client,
+            session["index_name"],
+            selected,
+            current_prompt,
+            file_index=file_index,
+        )
 
-    return {
-        "description": selected["description"],
-        "answer": answer,
-        "selected_file": selected_file,
-    }
+        answer = await run_query(vector_store, async_es_client, current_prompt)
+
+        return {
+            "description": selected["description"],
+            "answer": str(answer),
+            "selected_file": selected_file,
+        }
+    finally:
+        await async_es_client.close()
 
 @app.route('/api/query_session', methods=['POST'])
 async def handle_query_session():
@@ -276,17 +290,20 @@ async def handle_query_session():
     data = request.get_json()
     
     # 2. Extract parameters (ensure they exist or provide defaults)
-    session_data = data.get("session")
+    session_id = data.get("session_id")
     template_key = data.get("template_key")
     file_index = data.get("file_index") # Can be None
 
-    if not session_data or not template_key:
-        return jsonify({"error": "Missing session or template_key"}), 400
+    if not session_id or not template_key:
+        return jsonify({"error": "Missing session_id or template_key"}), 400
+
+    session = ACTIVE_SESSIONS.get(session_id)
+    if not session:
+        return jsonify({"error": "Session not found. Please reload the repository."}), 404
 
     try:
-        # 3. Await your async function
         result = await query_session(
-            session=session_data, 
+            session=session,
             template_key=template_key, 
             file_index=file_index
         )
@@ -296,6 +313,8 @@ async def handle_query_session():
 
     except KeyError as e:
         return jsonify({"error": str(e)}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 500
     except Exception as e:
@@ -318,8 +337,16 @@ def handle_download_github_repo():
 
     try:
         result = download_github_repo(repo_owner, repo_name, temp_dir)
+        session_id = temp_dir["sessionId"]
+        index_name = f"{INDEX_PREFIX}_{session_id}"
+        asyncio.run(set_up_pipeline(result, index_name))
 
-        return jsonify({"path": result}), 200
+        ACTIVE_SESSIONS[session_id] = {
+            "repo_path": result,
+            "index_name": index_name,
+        }
+
+        return jsonify({"path": result, "session_id": session_id}), 200
     
     except KeyError as e:
         return jsonify({"error": str(e)}), 404
@@ -327,6 +354,28 @@ def handle_download_github_repo():
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred"}), 500
+
+@app.route('/api/session_files', methods=['POST'])
+async def handle_session_files():
+    data = request.get_json()
+    session_id = data.get("session_id")
+
+    if not session_id:
+        return jsonify({"error": "Missing session_id"}), 400
+
+    session = ACTIVE_SESSIONS.get(session_id)
+    if not session:
+        return jsonify({"error": "Session not found. Please reload the repository."}), 404
+
+    try:
+        _, async_es_client = build_session_resources(session["index_name"])
+        try:
+            files = await get_indexed_files(async_es_client, session["index_name"])
+            return jsonify({"files": files}), 200
+        finally:
+            await async_es_client.close()
+    except Exception:
+        return jsonify({"error": "Unable to fetch indexed files"}), 500
 
 
 @app.route('/api/repo_exists', methods=['POST'])
