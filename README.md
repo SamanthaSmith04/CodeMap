@@ -1,5 +1,14 @@
 # CodeMap 🗺️
 
+CodeMap is a codebase analysis tool to make onboarding new developers easier. Upload a repository and instantly get a comprehensive overview of how it works.
+
+Our tool automatically analyzes your codebase and generates:
+
+- High-level descriptions of what the repository does
+- File structure outlines revealing the architecture
+- Instant answers to common questions using pre-filled prompts
+
+
 ## Project Setup
 
 `python3 -m venv venv`
